@@ -10,7 +10,7 @@
 #include <assimp\postprocess.h>
 #include <assimp\material.h>
 
-
+#pragma warning( disable : 26454 )
 using namespace std;
 typedef unsigned int UINT;
 typedef unsigned char BYTE;
@@ -41,6 +41,7 @@ struct Material
 
 struct Vertex
 {
+    Vertex() : Position(0,0,0), Texture(0,0), Normal(0,0,0), TangentU(0,0,0){}
     Vertex(float3 p, float2 t, float3 n, float3 tU) : Position(p), Texture(t), Normal(n), TangentU(tU){}
     float3 Position;
     float2 Texture;
@@ -413,14 +414,126 @@ int main()
         vFile.read((char*)(&vmeshes[i]->mat.shininess), sizeof(float));
 
         /*map strings*/
+        cout << "Check maps...\t";
+
         short slen = 0;
         vFile.read((char*)(&slen), sizeof(short));
-        cout << "dmap l: " << slen << endl;
 
-        char* dmap = new char[slen];
+        char* dmap = new char[slen+1];
         vFile.read(dmap, slen);
+        dmap[slen] = '\0';
 
-        cout << dmap;
+        slen = 0;
+        vFile.read((char*)(&slen), sizeof(short));
+
+        char* nmap = new char[slen+1];
+        vFile.read(nmap, slen);
+        nmap[slen] = '\0';
+        
+        slen = 0;
+        vFile.read((char*)(&slen), sizeof(short));
+
+        char* bmap = new char[slen + 1];
+        vFile.read(bmap, slen);
+        bmap[slen] = '\0';
+
+        if (meshes[i]->diffuseMap.compare(dmap) == 0 && 
+            meshes[i]->normalMap.compare(nmap) == 0 &&
+            meshes[i]->bumpMap.compare(bmap) == 0)
+        {
+            cout << "ok" << endl;
+        }
+        else
+        {
+            cout << "failed" << endl;
+        }
+
+        /*num vertices*/
+        cout << "num indices...\t";
+
+        int vnVert = 0;
+        vFile.read((char*)(&vnVert), sizeof(int));
+
+        if (vnVert == meshes[i]->vertices.size())
+        {
+            cout << "ok" << endl;
+        }
+        else
+        {
+            cout << "failed" << endl;
+        }
+
+        vmeshes[i]->vertices.resize(vnVert);
+
+        /*vertices*/
+        cout << "vertices...\t" << endl;
+
+        for (int j = 0; j < vnVert; j++)
+        {
+            vFile.read((char*)(&vmeshes[i]->vertices[j].Position.x), sizeof(float));
+            vFile.read((char*)(&vmeshes[i]->vertices[j].Position.y), sizeof(float));
+            vFile.read((char*)(&vmeshes[i]->vertices[j].Position.z), sizeof(float));
+
+            vFile.read((char*)(&vmeshes[i]->vertices[j].Texture.u), sizeof(float));
+            vFile.read((char*)(&vmeshes[i]->vertices[j].Texture.v), sizeof(float));
+
+            vFile.read((char*)(&vmeshes[i]->vertices[j].Normal.x), sizeof(float));
+            vFile.read((char*)(&vmeshes[i]->vertices[j].Normal.y), sizeof(float));
+            vFile.read((char*)(&vmeshes[i]->vertices[j].Normal.z), sizeof(float));
+
+            vFile.read((char*)(&vmeshes[i]->vertices[j].TangentU.x), sizeof(float));
+            vFile.read((char*)(&vmeshes[i]->vertices[j].TangentU.y), sizeof(float));
+            vFile.read((char*)(&vmeshes[i]->vertices[j].TangentU.z), sizeof(float));
+        }
+
+        /*
+        if (vmeshes[i]->vertices == meshes[i]->vertices)
+        {
+            cout << "ok" << endl;
+        }
+        else
+        {
+            cout << "failed" << endl;
+        }*/
+
+        
+
+        /*num indices*/
+        cout << "num indices...\t";
+
+        int vInd = 0;
+        vFile.read((char*)(&vInd), sizeof(int));
+
+        if (vInd == meshes[i]->indices.size())
+        {
+            cout << "ok" << endl;
+        }
+        else
+        {
+            cout << "failed - " << vInd << " vs " << meshes[i]->indices.size() << endl;
+        }
+
+        /*indices*/
+        cout << "indices...\t" << endl;
+
+        vmeshes[i]->indices.resize(vInd);
+
+        for (int j = 0; j < vInd; j++)
+        {
+            vFile.read((char*)(&vmeshes[i]->indices[j]), sizeof(int));
+        }
+
+        /*
+        if (vmeshes[i]->indices == meshes[i]->indices)
+        {
+            cout << "ok" << endl;
+        }
+        else
+        {
+            cout << "failed" << endl;
+        }*/
+
+
     }
 
     vFile.close();
