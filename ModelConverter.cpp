@@ -10,6 +10,9 @@
 #include <assimp\postprocess.h>
 #include <assimp\material.h>
 
+/*alternative load for m3d*/
+//#define M3D_LOAD
+
 #pragma warning( disable : 26454 )
 using namespace std;
 typedef unsigned int UINT;
@@ -80,7 +83,57 @@ int main()
     _splitpath_s(filePath.c_str(), NULL, 0, NULL, 0, id, 1024, NULL, 0);
     fileName = id;
 
+#ifdef M3D_LOAD
+    /*************************************************/
 
+    std::ifstream fin(filePath);
+
+    if (!fin)
+    {
+        return false;
+    }
+
+    UINT vcount = 0;
+    UINT tcount = 0;
+    std::string ignore;
+
+    fin >> ignore >> vcount;
+    fin >> ignore >> tcount;
+    fin >> ignore >> ignore >> ignore >> ignore;
+
+    meshes.push_back(new Mesh());
+    meshes[0]->vertices.resize(vcount);
+
+    for (UINT i = 0; i < vcount; ++i)
+    {
+        fin >> meshes[0]->vertices[i].Position.x >> meshes[0]->vertices[i].Position.y >> meshes[0]->vertices[i].Position.z;
+        fin >> meshes[0]->vertices[i].Normal.x >> meshes[0]->vertices[i].Normal.y >> meshes[0]->vertices[i].Normal.z;
+    }
+
+    fin >> ignore;
+    fin >> ignore;
+    fin >> ignore;
+
+    int indexCount = 3 * tcount;
+    meshes[0]->indices.resize(indexCount);
+
+    for (UINT i = 0; i < tcount; ++i)
+    {
+        fin >> meshes[0]->indices[i * 3 + 0] >> meshes[0]->indices[i * 3 + 1] >> meshes[0]->indices[i * 3 + 2];
+    }
+
+    Material material;
+    material.Ambient = float3(0.8f, 0.8f, 0.8f);
+    material.Diffuse = float3(0.8f, 0.8f, 0.8f);
+    material.Specular = float3(0.8f, 0.8f, 0.8f);
+    material.shininess = 8.f;
+
+    meshes[0]->mat = material;
+
+    fin.close();
+
+    /*************************************************/
+#else
     const aiScene* loadedScene = fbxImport.ReadFile(filePath, aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_ConvertToLeftHanded);
 
     if (!loadedScene)
@@ -234,7 +287,7 @@ int main()
 
 
     }
-
+#endif
     auto endTime = std::chrono::high_resolution_clock::now();
 
     estimatedFileSize += 5;
@@ -340,7 +393,7 @@ int main()
     fileHandle.close();
     
     endTime = std::chrono::high_resolution_clock::now();
-    cout << "Finished writing " << fileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms\n" << endl;
+    cout << "\nFinished writing " << fileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms\n" << endl;
 
     /*verification*/
     cout << "Verifying b3d file is correct...\n";
@@ -449,7 +502,7 @@ int main()
         }
 
         /*num vertices*/
-        cout << "num indices...\t";
+        cout << "num vertices...\t";
 
         int vnVert = 0;
         vFile.read((char*)(&vnVert), sizeof(int));
@@ -466,7 +519,7 @@ int main()
         vmeshes[i]->vertices.resize(vnVert);
 
         /*vertices*/
-        cout << "vertices...\t" << endl;
+        cout << "vertices...\t";
 
         for (int j = 0; j < vnVert; j++)
         {
@@ -486,15 +539,16 @@ int main()
             vFile.read((char*)(&vmeshes[i]->vertices[j].TangentU.z), sizeof(float));
         }
 
-        /*
-        if (vmeshes[i]->vertices == meshes[i]->vertices)
+
+        if(vmeshes[i]->vertices[0].Position.z == vmeshes[i]->vertices[0].Position.z &&
+           vmeshes[i]->vertices[0].TangentU.x == vmeshes[i]->vertices[0].TangentU.x)
         {
             cout << "ok" << endl;
         }
         else
         {
             cout << "failed" << endl;
-        }*/
+        }
 
         
 
@@ -514,7 +568,7 @@ int main()
         }
 
         /*indices*/
-        cout << "indices...\t" << endl;
+        cout << "indices...\t";
 
         vmeshes[i]->indices.resize(vInd);
 
@@ -523,7 +577,7 @@ int main()
             vFile.read((char*)(&vmeshes[i]->indices[j]), sizeof(int));
         }
 
-        /*
+        
         if (vmeshes[i]->indices == meshes[i]->indices)
         {
             cout << "ok" << endl;
@@ -531,12 +585,13 @@ int main()
         else
         {
             cout << "failed" << endl;
-        }*/
+        }
 
 
     }
 
-    vFile.close();
+    cin.get(); cin.get();
+
     return true;
 
 }

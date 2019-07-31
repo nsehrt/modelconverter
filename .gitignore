@@ -338,3 +338,11 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+/test.fbx
+/test.blend1
+/test.blend
+/test.b3d
+/skull.m3d
+/skull.b3d
+/simpleman.b3d
+/simpleman.fbx
