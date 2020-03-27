@@ -4,11 +4,14 @@
 #include <fstream>
 #include <sstream>
 #include <Windows.h>
-#pragma comment(lib, "assimp-vc140-mt.lib")
+#pragma comment(lib, "assimp-vc142-mt.lib")
 #include <assimp\Importer.hpp>
 #include <assimp\scene.h>
 #include <assimp\postprocess.h>
 #include <assimp\material.h>
+#include <DirectXMath.h>
+
+using namespace DirectX;
 
 /*alternative load for m3d*/
 //#define M3D_LOAD
@@ -107,7 +110,12 @@ int main()
     for (UINT i = 0; i < vcount; ++i)
     {
         fin >> meshes[0]->vertices[i].Position.x >> meshes[0]->vertices[i].Position.y >> meshes[0]->vertices[i].Position.z;
+        meshes[0]->vertices[i].Texture.u = 0.f;
+        meshes[0]->vertices[i].Texture.v = 0.f;
         fin >> meshes[0]->vertices[i].Normal.x >> meshes[0]->vertices[i].Normal.y >> meshes[0]->vertices[i].Normal.z;
+        meshes[0]->vertices[i].TangentU.x = 0.f;
+        meshes[0]->vertices[i].TangentU.y = 0.f;
+        meshes[0]->vertices[i].TangentU.z = 0.f;
     }
 
     fin >> ignore;
@@ -126,9 +134,12 @@ int main()
     material.Ambient = float3(0.8f, 0.8f, 0.8f);
     material.Diffuse = float3(0.8f, 0.8f, 0.8f);
     material.Specular = float3(0.8f, 0.8f, 0.8f);
-    material.shininess = 8.f;
+    material.shininess = 16.f;
 
     meshes[0]->mat = material;
+    meshes[0]->diffuseMap = "none";
+    meshes[0]->normalMap = "none";
+    meshes[0]->bumpMap = "none";
 
     fin.close();
 
@@ -176,10 +187,10 @@ int main()
         {
             cout << "unsupported shading mode, using default material\n";
 
-            meshes[i]->mat.Ambient = float3(1.f, 1.f, 1.f);
+            meshes[i]->mat.Ambient = float3(.8f, .8f, .8f);
             meshes[i]->mat.Diffuse = float3(0.8f, 0.8f, 0.8f);
-            meshes[i]->mat.Specular = float3(0.2f, 0.2f, 0.2f);
-            meshes[i]->mat.shininess = 8.f;
+            meshes[i]->mat.Specular = float3(0.8f, 0.8f, 0.8f);
+            meshes[i]->mat.shininess = 16.f;
         }
         else
         {
@@ -269,13 +280,15 @@ int main()
                                           float3(tangU.x, tangU.y, tangU.z)
             ));
 
+            //cout << i << ": " << meshes[i]->vertices.back().Position.x << " " <<meshes[i]->vertices.back().Position.y << " " << meshes[i]->vertices.back().Position.z << endl;
+
         }
 
         /*get indices*/
         meshes[i]->indices.reserve((int)(mesh->mNumFaces) * 3);
         estimatedFileSize += (int)(mesh->mNumFaces) * 3 * sizeof(uint32_t);
 
-        cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces * 3 << " indices\n" << endl;
+        cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces * 3 << " faces\n" << endl;
 
 
         for (UINT j = 0; j < mesh->mNumFaces; j++)
@@ -321,18 +334,18 @@ int main()
     for (char i = 0; i < meshSize; i++)
     {
         /*material*/
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Ambient.x), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Ambient.y), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Ambient.z), sizeof(float));
+        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Ambient.x), sizeof(float));
+        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Ambient.y), sizeof(float));
+        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Ambient.z), sizeof(float));
 
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Diffuse.x), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Diffuse.y), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Diffuse.z), sizeof(float));
+        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Diffuse.x), sizeof(float));
+        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Diffuse.y), sizeof(float));
+        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Diffuse.z), sizeof(float));
 
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Specular.x), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Specular.y), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Specular.z), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.shininess), sizeof(float));
+        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Specular.x), sizeof(float));
+        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Specular.y), sizeof(float));
+        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Specular.z), sizeof(float));
+        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.shininess), sizeof(float));
 
         /*maps*/
         short stringSize;
@@ -359,21 +372,42 @@ int main()
         /*vertices*/
         for (int v = 0; v < verticesSize; v++)
         {
+            XMFLOAT3 Position;
+            Position.x = meshes[i]->vertices[v].Position.x;
+            Position.y = meshes[i]->vertices[v].Position.y;
+            Position.z = meshes[i]->vertices[v].Position.z;
+
+            XMFLOAT3 Normal;
+            Normal.x = meshes[i]->vertices[v].Normal.x;
+            Normal.y = meshes[i]->vertices[v].Normal.y;
+            Normal.z = meshes[i]->vertices[v].Normal.z;
+
+            XMFLOAT3 Tangent;
+            Tangent.x = meshes[i]->vertices[v].TangentU.x;
+            Tangent.y = meshes[i]->vertices[v].TangentU.y;
+            Tangent.z = meshes[i]->vertices[v].TangentU.z;
+
+#ifndef M3D_LOAD
+            XMStoreFloat3(&Position, XMVector3Transform(XMLoadFloat3(&Position), XMMatrixRotationX(XM_PIDIV2)));
+            XMStoreFloat3(&Normal, XMVector3Transform(XMLoadFloat3(&Normal), XMMatrixRotationX(XM_PIDIV2)));
+            XMStoreFloat3(&Tangent, XMVector3Transform(XMLoadFloat3(&Tangent), XMMatrixRotationX(XM_PIDIV2)));
+#endif
+
             /*position*/
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Position.x), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Position.y), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Position.z), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Position.x), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Position.y), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Position.z), sizeof(float));
             /*texture coordinates*/
             fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Texture.u), sizeof(float));
             fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Texture.v), sizeof(float));
             /*normals*/
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Normal.x), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Normal.y), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Normal.z), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Normal.x), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Normal.y), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Normal.z), sizeof(float));
             /*tangentU*/
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].TangentU.x), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].TangentU.y), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].TangentU.z), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Tangent.x), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Tangent.y), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Tangent.z), sizeof(float));
 
         }
 
@@ -452,19 +486,19 @@ int main()
     {
         vmeshes.push_back(new Mesh());
         /*material*/
-        vFile.read((char*)(&vmeshes[i]->mat.Ambient.x), sizeof(float));
-        vFile.read((char*)(&vmeshes[i]->mat.Ambient.y), sizeof(float));
-        vFile.read((char*)(&vmeshes[i]->mat.Ambient.z), sizeof(float));
+        //vFile.read((char*)(&vmeshes[i]->mat.Ambient.x), sizeof(float));
+        //vFile.read((char*)(&vmeshes[i]->mat.Ambient.y), sizeof(float));
+        //vFile.read((char*)(&vmeshes[i]->mat.Ambient.z), sizeof(float));
 
-        vFile.read((char*)(&vmeshes[i]->mat.Diffuse.x), sizeof(float));
-        vFile.read((char*)(&vmeshes[i]->mat.Diffuse.y), sizeof(float));
-        vFile.read((char*)(&vmeshes[i]->mat.Diffuse.z), sizeof(float));
+        //vFile.read((char*)(&vmeshes[i]->mat.Diffuse.x), sizeof(float));
+        //vFile.read((char*)(&vmeshes[i]->mat.Diffuse.y), sizeof(float));
+        //vFile.read((char*)(&vmeshes[i]->mat.Diffuse.z), sizeof(float));
 
-        vFile.read((char*)(&vmeshes[i]->mat.Specular.x), sizeof(float));
-        vFile.read((char*)(&vmeshes[i]->mat.Specular.y), sizeof(float));
-        vFile.read((char*)(&vmeshes[i]->mat.Specular.z), sizeof(float));
+        //vFile.read((char*)(&vmeshes[i]->mat.Specular.x), sizeof(float));
+        //vFile.read((char*)(&vmeshes[i]->mat.Specular.y), sizeof(float));
+        //vFile.read((char*)(&vmeshes[i]->mat.Specular.z), sizeof(float));
 
-        vFile.read((char*)(&vmeshes[i]->mat.shininess), sizeof(float));
+        //vFile.read((char*)(&vmeshes[i]->mat.shininess), sizeof(float));
 
         /*map strings*/
         cout << "Check maps...\t";

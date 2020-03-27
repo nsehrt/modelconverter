@@ -346,3 +346,11 @@ healthchecksdb
 /skull.b3d
 /simpleman.b3d
 /simpleman.fbx
+/bar.b3d
+*.b3d
+*.blend
+*.fbx
+*.m3d
+*.blend1
+*.3ds
+*.dds
