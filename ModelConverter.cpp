@@ -67,18 +67,29 @@ public:
 std::string filePath, fileName;
 uint32_t estimatedFileSize = 0;
 
-int main()
+int main(int argc, char* argv[])
 {
     Assimp::Importer fbxImport;
     vector<Mesh*> meshes, vmeshes;
 
-    cout << "ModelConverter\nPath to model file: " << flush;
+    if (argc < 2)
+    {
+        cout << "ModelConverter\nPath to model file: " << flush;
 #if _DEBUG
-    filePath = "plant.fbx";
+        filePath = "plant.fbx";
 #else
-    cin >> filePath;
+        cin >> filePath;
 #endif
-    cout << endl;
+        cout << endl;
+    }
+    else
+    {
+        std::stringstream ss;
+        ss << argv[1];
+        filePath = ss.str();
+    }
+
+
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
