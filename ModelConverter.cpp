@@ -35,16 +35,6 @@ struct float2
     float u, v;
 };
 
-struct Material
-{
-    Material() : Ambient(), Diffuse(), Specular(), shininess(){ RtlSecureZeroMemory(this, sizeof(this)); }
-    Material(float3 _a, float3 _d, float3 _s, float sh) : Ambient(_a), Diffuse(_d), Specular(_s), shininess(sh){ }
-    float3 Ambient;
-    float3 Diffuse;
-    float3 Specular;
-    float shininess;
-};
-
 struct Vertex
 {
     Vertex() : Position(0,0,0), Texture(0,0), Normal(0,0,0), TangentU(0,0,0){}
@@ -60,8 +50,7 @@ struct Mesh
 public:
     vector<Vertex> vertices;
     vector<uint32_t> indices;
-    Material mat;
-    std::string diffuseMap, normalMap, bumpMap;
+    std::string materialName;
 };
 
 std::string filePath, fileName;
@@ -74,9 +63,13 @@ int main(int argc, char* argv[])
 
     if (argc < 2)
     {
-        cout << "ModelConverter\nPath to model file: " << flush;
+        cout << "ModelConverter B3D 1.1\nPath to model file: " << flush;
 #if _DEBUG
+#ifndef M3D_LOAD
         filePath = "plant.fbx";
+#else
+        filePath = "skull.m3d";
+#endif
 #else
         cin >> filePath;
 #endif
@@ -140,17 +133,8 @@ int main(int argc, char* argv[])
     {
         fin >> meshes[0]->indices[i * 3 + 0] >> meshes[0]->indices[i * 3 + 1] >> meshes[0]->indices[i * 3 + 2];
     }
-
-    Material material;
-    material.Ambient = float3(0.8f, 0.8f, 0.8f);
-    material.Diffuse = float3(0.8f, 0.8f, 0.8f);
-    material.Specular = float3(0.8f, 0.8f, 0.8f);
-    material.shininess = 16.f;
-
-    meshes[0]->mat = material;
-    meshes[0]->diffuseMap = "none";
-    meshes[0]->normalMap = "none";
-    meshes[0]->bumpMap = "none";
+    
+    meshes[0]->materialName = "skull";
 
     fin.close();
 
@@ -166,6 +150,7 @@ int main(int argc, char* argv[])
 
     /*reserve memory for meshes*/
     meshes.reserve(loadedScene->mNumMeshes);
+    
     cout << "Model contains " << loadedScene->mNumMeshes << " meshes!\n" << endl;
 
     for (UINT i = 0; i < loadedScene->mNumMeshes; i++)
@@ -179,97 +164,13 @@ int main(int argc, char* argv[])
 
         cout<<"Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << endl;
 
-        /*material*/
-        aiMaterial* material = loadedScene->mMaterials[mesh->mMaterialIndex];
+        cout << "Input name of material for " << mesh->mName.C_Str() << ": ";
+        getline(cin, meshes[i]->materialName);
 
-        aiColor4D ambient, diffuse, specular;
-        float shine;
-
-        aiString name;
-        material->Get(AI_MATKEY_NAME, name);
-
-        cout<<"Material: " << name.data << endl;
-
-        /*check shading model*/
-        int shadingModel;
-        material->Get(AI_MATKEY_SHADING_MODEL, shadingModel);
-
-        if (shadingModel != aiShadingMode_Phong && shadingModel != aiShadingMode_Gouraud)
+        if (i > 0 && meshes[i]->materialName == "")
         {
-            cout << "unsupported shading mode, using default material\n";
-
-            meshes[i]->mat.Ambient = float3(.8f, .8f, .8f);
-            meshes[i]->mat.Diffuse = float3(0.8f, 0.8f, 0.8f);
-            meshes[i]->mat.Specular = float3(0.8f, 0.8f, 0.8f);
-            meshes[i]->mat.shininess = 16.f;
+            meshes[i]->materialName = meshes[i - 1]->materialName;
         }
-        else
-        {
-
-            aiGetMaterialColor(material, AI_MATKEY_COLOR_AMBIENT, &ambient);
-            aiGetMaterialColor(material, AI_MATKEY_COLOR_DIFFUSE, &diffuse);
-            aiGetMaterialColor(material, AI_MATKEY_COLOR_SPECULAR, &specular);
-            aiGetMaterialFloat(material, AI_MATKEY_SHININESS, &shine);
-
-            meshes[i]->mat.Ambient = float3(ambient.r, ambient.g, ambient.b);
-            meshes[i]->mat.Diffuse = float3(diffuse.r, diffuse.g, diffuse.b);
-            meshes[i]->mat.Specular = float3(specular.r, specular.g, specular.b);
-            meshes[i]->mat.shininess = shine;
-        }
-
-        cout<<"Ambient: " << meshes[i]->mat.Ambient.x << " " << meshes[i]->mat.Ambient.y << " " << meshes[i]->mat.Ambient.z << endl;
-        cout << "Diffuse: " << meshes[i]->mat.Diffuse.x << " " << meshes[i]->mat.Diffuse.y << " " << meshes[i]->mat.Diffuse.z << endl;
-        cout << "Specular: " << meshes[i]->mat.Specular.x << " " << meshes[i]->mat.Specular.y << " " << meshes[i]->mat.Specular.z << endl;
-
-
-        /*maps*/
-
-        meshes[i]->diffuseMap = "none";
-        meshes[i]->normalMap = "none";
-        meshes[i]->bumpMap = "none";
-
-
-        if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0)
-        {
-            aiString Path;
-
-            if (material->GetTexture(aiTextureType_DIFFUSE, 0, &Path, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS)
-            {
-                char id[1024];
-                _splitpath_s(Path.data, NULL, 0, NULL, 0, id, 1024, NULL, 0);
-                meshes[i]->diffuseMap = id;
-            }
-        }
-
-        if (material->GetTextureCount(aiTextureType_NORMALS) > 0)
-        {
-            aiString Path;
-
-            if (material->GetTexture(aiTextureType_NORMALS, 0, &Path, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS)
-            {
-                char id[1024];
-                _splitpath_s(Path.data, NULL, 0, NULL, 0, id, 1024, NULL, 0);
-                meshes[i]->normalMap = id;
-            }
-
-        }
-
-        if (material->GetTextureCount(aiTextureType_DISPLACEMENT) > 0)
-        {
-            aiString Path;
-
-            if (material->GetTexture(aiTextureType_DISPLACEMENT, 0, &Path, NULL, NULL, NULL, NULL, NULL) == AI_SUCCESS)
-            {
-                char id[1024];
-                _splitpath_s(Path.data, NULL, 0, NULL, 0, id, 1024, NULL, 0);
-                meshes[i]->bumpMap = id;
-            }
-
-        }
-
-        cout << "Diffuse map: " << meshes[i]->diffuseMap << endl;
-        cout << "Normal map: " << meshes[i]->normalMap << endl;
-        cout << "Bump map: " << meshes[i]->bumpMap << endl;
 
         /*get vertices: positions normals tex coords and tangentu */
 
@@ -344,37 +245,10 @@ int main(int argc, char* argv[])
 
     for (char i = 0; i < meshSize; i++)
     {
-        /*material*/
-        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Ambient.x), sizeof(float));
-        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Ambient.y), sizeof(float));
-        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Ambient.z), sizeof(float));
-
-        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Diffuse.x), sizeof(float));
-        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Diffuse.y), sizeof(float));
-        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Diffuse.z), sizeof(float));
-
-        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Specular.x), sizeof(float));
-        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Specular.y), sizeof(float));
-        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.Specular.z), sizeof(float));
-        //fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->mat.shininess), sizeof(float));
-
-        /*maps*/
-        short stringSize;
-
-        /*diffuse*/
-        stringSize = (short)meshes[i]->diffuseMap.size();
+        /*material name*/
+        short stringSize = (short)meshes[i]->materialName.size();
         fileHandle.write(reinterpret_cast<const char*>(&stringSize), sizeof(stringSize));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->diffuseMap[0]), stringSize);
-
-        /*normal*/
-        stringSize = (short)meshes[i]->normalMap.size();
-        fileHandle.write(reinterpret_cast<const char*>(&stringSize), sizeof(stringSize));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->normalMap[0]), stringSize);
-
-        /*bump*/
-        stringSize = (short)meshes[i]->bumpMap.size();
-        fileHandle.write(reinterpret_cast<const char*>(&stringSize), sizeof(stringSize));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->bumpMap[0]), stringSize);
+        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->materialName[0]), stringSize);
 
         /*num vertices*/
         int verticesSize = (int)meshes[i]->vertices.size();
@@ -423,7 +297,7 @@ int main(int argc, char* argv[])
         }
 
 
-        /*num vertices*/
+        /*num indices*/
         int indicesSize = (int)meshes[i]->indices.size();
         fileHandle.write(reinterpret_cast<const char*>(&indicesSize), sizeof(int));
 
@@ -486,7 +360,7 @@ int main(int argc, char* argv[])
 
     if (vNumMeshes == meshes.size())
     {
-        cout << "ok\n";
+        cout << "ok (" << (int)vNumMeshes << ")\n";
     }
     else
     {
@@ -496,55 +370,26 @@ int main(int argc, char* argv[])
     for (char i = 0; i < vNumMeshes; i++)
     {
         vmeshes.push_back(new Mesh());
+
         /*material*/
-        //vFile.read((char*)(&vmeshes[i]->mat.Ambient.x), sizeof(float));
-        //vFile.read((char*)(&vmeshes[i]->mat.Ambient.y), sizeof(float));
-        //vFile.read((char*)(&vmeshes[i]->mat.Ambient.z), sizeof(float));
-
-        //vFile.read((char*)(&vmeshes[i]->mat.Diffuse.x), sizeof(float));
-        //vFile.read((char*)(&vmeshes[i]->mat.Diffuse.y), sizeof(float));
-        //vFile.read((char*)(&vmeshes[i]->mat.Diffuse.z), sizeof(float));
-
-        //vFile.read((char*)(&vmeshes[i]->mat.Specular.x), sizeof(float));
-        //vFile.read((char*)(&vmeshes[i]->mat.Specular.y), sizeof(float));
-        //vFile.read((char*)(&vmeshes[i]->mat.Specular.z), sizeof(float));
-
-        //vFile.read((char*)(&vmeshes[i]->mat.shininess), sizeof(float));
-
-        /*map strings*/
-        cout << "Check maps...\t";
+        cout << "material...\t";
 
         short slen = 0;
         vFile.read((char*)(&slen), sizeof(short));
 
-        char* dmap = new char[slen+1];
-        vFile.read(dmap, slen);
-        dmap[slen] = '\0';
+        char* mat = new char[slen + 1];
+        vFile.read(mat, slen);
+        mat[slen] = '\0';
 
-        slen = 0;
-        vFile.read((char*)(&slen), sizeof(short));
-
-        char* nmap = new char[slen+1];
-        vFile.read(nmap, slen);
-        nmap[slen] = '\0';
-        
-        slen = 0;
-        vFile.read((char*)(&slen), sizeof(short));
-
-        char* bmap = new char[slen + 1];
-        vFile.read(bmap, slen);
-        bmap[slen] = '\0';
-
-        if (meshes[i]->diffuseMap.compare(dmap) == 0 && 
-            meshes[i]->normalMap.compare(nmap) == 0 &&
-            meshes[i]->bumpMap.compare(bmap) == 0)
+        if (meshes[i]->materialName.compare(mat) == 0)
         {
-            cout << "ok" << endl;
+            cout << "ok (" << mat << ")\n";
         }
         else
         {
             cout << "failed" << endl;
         }
+
 
         /*num vertices*/
         cout << "num vertices...\t";
@@ -554,7 +399,7 @@ int main(int argc, char* argv[])
 
         if (vnVert == meshes[i]->vertices.size())
         {
-            cout << "ok" << endl;
+            cout << "ok (" << vnVert << ")\n";
         }
         else
         {
@@ -605,7 +450,7 @@ int main(int argc, char* argv[])
 
         if (vInd == meshes[i]->indices.size())
         {
-            cout << "ok" << endl;
+            cout << "ok (" << vInd << ")\n";
         }
         else
         {
@@ -634,8 +479,6 @@ int main(int argc, char* argv[])
 
 
     }
-
-    cin.get(); cin.get();
 
     return true;
 
