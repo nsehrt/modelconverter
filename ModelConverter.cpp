@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
         cout << "ModelConverter B3D 1.1\nPath to model file: " << flush;
 #if _DEBUG
 #ifndef M3D_LOAD
-        filePath = "plant.fbx";
+        filePath = "C:\\Users\\n_seh\\Desktop\\temp\\pinetree.fbx";
 #else
         filePath = "skull.m3d";
 #endif
@@ -182,7 +182,11 @@ int main(int argc, char* argv[])
             aiVector3D pos = mesh->mVertices[v];
             aiVector3D norm = mesh->mNormals[v];
 
-            tangU = mesh->mTangents[v];
+            if (mesh->HasTangentsAndBitangents() != 0)
+            {
+                tangU = mesh->mTangents[v];
+            }
+            
             tex = mesh->mTextureCoords[0][v];
             
             /*convert to vertex data format*/
