@@ -60,26 +60,32 @@ int main(int argc, char* argv[])
 {
     Assimp::Importer fbxImport;
     vector<Mesh*> meshes, vmeshes;
+    float scaleFactor = 0.0f;
 
     if (argc < 2)
     {
-        cout << "ModelConverter B3D 1.1\nPath to model file: " << flush;
+        std::cout << "ModelConverter B3D 1.1\nPath to model file: " << flush;
 #if _DEBUG
 #ifndef M3D_LOAD
-        filePath = "C:\\Users\\n_seh\\Desktop\\temp\\pinetree.fbx";
+        filePath = "C:\\Users\\n_seh\\Desktop\\temp\\palm.fbx";
 #else
         filePath = "skull.m3d";
 #endif
 #else
         cin >> filePath;
 #endif
-        cout << endl;
+        std::cout << endl;
     }
     else
     {
         std::stringstream ss;
         ss << argv[1];
         filePath = ss.str();
+
+        if (argc == 3)
+        {
+            scaleFactor = atof(argv[2]);
+        }
     }
 
 
@@ -151,9 +157,17 @@ int main(int argc, char* argv[])
     /*reserve memory for meshes*/
     meshes.reserve(loadedScene->mNumMeshes);
     
-    cout << "Model contains " << loadedScene->mNumMeshes << " meshes!\n" << endl;
+    std::cout << "Model contains " << loadedScene->mNumMeshes << " meshes!\n" << endl;
 
-    for (UINT i = 0; i < loadedScene->mNumMeshes; i++)
+    int i = 0;
+
+    XMFLOAT3 cMin(+FLT_MAX, +FLT_MAX, +FLT_MAX);
+    XMFLOAT3 cMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+    XMVECTOR vMin = XMLoadFloat3(&cMin);
+    XMVECTOR vMax = XMLoadFloat3(&cMax);
+
+    for (UINT j = 0; j < loadedScene->mNumMeshes; j++)
     {
         aiMesh* mesh = loadedScene->mMeshes[i];
 
@@ -162,14 +176,20 @@ int main(int argc, char* argv[])
         meshes[i]->vertices.reserve(mesh->mNumVertices);
         estimatedFileSize += mesh->mNumVertices * sizeof(Vertex);
 
-        cout<<"Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << endl;
+        std::cout<<"Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << endl;
 
-        cout << "Input name of material for " << mesh->mName.C_Str() << ": ";
-        getline(cin, meshes[i]->materialName);
+        std::cout << "Input name of material for " << mesh->mName.C_Str() << ": ";
+        getline(std::cin, meshes[i]->materialName);
 
         if (i > 0 && meshes[i]->materialName == "")
         {
             meshes[i]->materialName = meshes[i - 1]->materialName;
+        }
+
+        if (meshes[i]->materialName == "del")
+        {
+            meshes.pop_back();
+            continue;
         }
 
         /*get vertices: positions normals tex coords and tangentu */
@@ -196,15 +216,51 @@ int main(int argc, char* argv[])
                                           float3(tangU.x, tangU.y, tangU.z)
             ));
 
-            //cout << i << ": " << meshes[i]->vertices.back().Position.x << " " <<meshes[i]->vertices.back().Position.y << " " << meshes[i]->vertices.back().Position.z << endl;
+            XMFLOAT3 pV3 = { pos.x, pos.y, pos.z };
 
+            vMin = XMVectorMin(vMin, XMLoadFloat3(&pV3));
+            vMax = XMVectorMax(vMax, XMLoadFloat3(&pV3));
+
+        }
+
+        XMFLOAT3 center;
+        DirectX::XMStoreFloat3(&center, 0.5f * (vMin + vMax));
+
+        std::cout << "Center is " << center.x << ", " << center.y << ", " << center.z << std::endl;
+        if (scaleFactor != 0.0f)
+        {
+            std::cout << "Scaling with factor " << scaleFactor << std::endl;
+        }
+
+        for (auto& m : meshes)
+        {
+            for (auto& v : m->vertices)
+            {
+                v.Position.x -= center.x;
+                v.Position.y -= center.y;
+                v.Position.z -= center.z;
+
+
+                if (scaleFactor != 0.0f)
+                {
+                    DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
+                    XMVECTOR a = XMLoadFloat3(&xm);
+                    a = XMVectorScale(a, scaleFactor);
+                    XMStoreFloat3(&xm, a);
+
+                    v.Position.x = xm.x;
+                    v.Position.y = xm.y;
+                    v.Position.z = xm.z;
+                }
+
+            }
         }
 
         /*get indices*/
         meshes[i]->indices.reserve((int)(mesh->mNumFaces) * 3);
         estimatedFileSize += (int)(mesh->mNumFaces) * 3 * sizeof(uint32_t);
 
-        cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces * 3 << " faces\n" << endl;
+        std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces * 3 << " faces\n" << endl;
 
 
         for (UINT j = 0; j < mesh->mNumFaces; j++)
@@ -214,7 +270,7 @@ int main(int argc, char* argv[])
             meshes[i]->indices.push_back(mesh->mFaces[j].mIndices[2]);
         }
 
-
+        i++;
     }
 #endif
     auto endTime = std::chrono::high_resolution_clock::now();
@@ -227,8 +283,8 @@ int main(int argc, char* argv[])
         estimatedFileSize += 6 + 3 * 10;
     }
 
-    cout << "Finished loading " << fileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms" << endl;
-    cout << "Estimated size: " << (estimatedFileSize/1024) << " kbytes (" << estimatedFileSize << " bytes)" << endl;
+    std::cout << "Finished loading " << fileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms" << endl;
+    std::cout << "Estimated size: " << (estimatedFileSize/1024) << " kbytes (" << estimatedFileSize << " bytes)" << endl;
 
     /*writing to binary file .b3d*/
     startTime = std::chrono::high_resolution_clock::now();
@@ -316,10 +372,10 @@ int main(int argc, char* argv[])
     fileHandle.close();
     
     endTime = std::chrono::high_resolution_clock::now();
-    cout << "\nFinished writing " << fileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms\n" << endl;
+    std::cout << "\nFinished writing " << fileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms\n" << endl;
 
     /*verification*/
-    cout << "Verifying b3d file is correct...\n";
+    std::cout << "Verifying b3d file is correct...\n";
 
     /*load b3d file*/
     streampos fileSize;
@@ -332,7 +388,7 @@ int main(int argc, char* argv[])
 
     /*check header*/
     bool hr = true;
-    cout << "header...\t";
+    std::cout << "header...\t";
 
     char buff[4] = { 'b', '3', 'd', 'f' };
 
@@ -350,25 +406,25 @@ int main(int argc, char* argv[])
 
     if (hr == false)
     {
-        cout << "not a b3d file\n";
+        std::cout << "not a b3d file\n";
     }
     else
     {
-        cout << "ok\n";
+        std::cout << "ok\n";
     }
 
     /*num meshes*/
-    cout << "num meshes...\t";
+    std::cout << "num meshes...\t";
     char vNumMeshes = 0;
     vFile.read((char*)(&vNumMeshes), sizeof(char));
 
     if (vNumMeshes == meshes.size())
     {
-        cout << "ok (" << (int)vNumMeshes << ")\n";
+        std::cout << "ok (" << (int)vNumMeshes << ")\n";
     }
     else
     {
-        cout << "failed\n";
+        std::cout << "failed\n";
     }
 
     for (char i = 0; i < vNumMeshes; i++)
@@ -376,7 +432,7 @@ int main(int argc, char* argv[])
         vmeshes.push_back(new Mesh());
 
         /*material*/
-        cout << "material...\t";
+        std::cout << "material...\t";
 
         short slen = 0;
         vFile.read((char*)(&slen), sizeof(short));
@@ -387,33 +443,33 @@ int main(int argc, char* argv[])
 
         if (meshes[i]->materialName.compare(mat) == 0)
         {
-            cout << "ok (" << mat << ")\n";
+            std::cout << "ok (" << mat << ")\n";
         }
         else
         {
-            cout << "failed" << endl;
+            std::cout << "failed" << endl;
         }
 
 
         /*num vertices*/
-        cout << "num vertices...\t";
+        std::cout << "num vertices...\t";
 
         int vnVert = 0;
         vFile.read((char*)(&vnVert), sizeof(int));
 
         if (vnVert == meshes[i]->vertices.size())
         {
-            cout << "ok (" << vnVert << ")\n";
+            std::cout << "ok (" << vnVert << ")\n";
         }
         else
         {
-            cout << "failed" << endl;
+            std::cout << "failed" << endl;
         }
 
         vmeshes[i]->vertices.resize(vnVert);
 
         /*vertices*/
-        cout << "vertices...\t";
+        std::cout << "vertices...\t";
 
         for (int j = 0; j < vnVert; j++)
         {
@@ -437,32 +493,32 @@ int main(int argc, char* argv[])
         if(vmeshes[i]->vertices[0].Position.z == vmeshes[i]->vertices[0].Position.z &&
            vmeshes[i]->vertices[0].TangentU.x == vmeshes[i]->vertices[0].TangentU.x)
         {
-            cout << "ok" << endl;
+            std::cout << "ok" << endl;
         }
         else
         {
-            cout << "failed" << endl;
+            std::cout << "failed" << endl;
         }
 
         
 
         /*num indices*/
-        cout << "num indices...\t";
+        std::cout << "num indices...\t";
 
         int vInd = 0;
         vFile.read((char*)(&vInd), sizeof(int));
 
         if (vInd == meshes[i]->indices.size())
         {
-            cout << "ok (" << vInd << ")\n";
+            std::cout << "ok (" << vInd << ")\n";
         }
         else
         {
-            cout << "failed - " << vInd << " vs " << meshes[i]->indices.size() << endl;
+            std::cout << "failed - " << vInd << " vs " << meshes[i]->indices.size() << endl;
         }
 
         /*indices*/
-        cout << "indices...\t";
+        std::cout << "indices...\t";
 
         vmeshes[i]->indices.resize(vInd);
 
@@ -474,11 +530,11 @@ int main(int argc, char* argv[])
         
         if (vmeshes[i]->indices == meshes[i]->indices)
         {
-            cout << "ok" << endl;
+            std::cout << "ok" << endl;
         }
         else
         {
-            cout << "failed" << endl;
+            std::cout << "failed" << endl;
         }
 
 
