@@ -53,7 +53,7 @@ public:
     std::string materialName;
 };
 
-std::string filePath, fileName;
+std::string filePath, fileName, prefix;
 uint32_t estimatedFileSize = 0;
 
 int main(int argc, char* argv[])
@@ -61,6 +61,8 @@ int main(int argc, char* argv[])
     Assimp::Importer fbxImport;
     vector<Mesh*> meshes, vmeshes;
     float scaleFactor = 0.0f;
+
+    prefix = "";
 
     if (argc < 2)
     {
@@ -82,9 +84,17 @@ int main(int argc, char* argv[])
         ss << argv[1];
         filePath = ss.str();
 
-        if (argc == 3)
+        if (argc > 2)
         {
-            scaleFactor = atof(argv[2]);
+            scaleFactor = (float)atof(argv[2]);
+        }
+
+        if (argc > 3)
+        {
+            std::stringstream prefixss;
+            prefixss << argv[3];
+            prefix = prefixss.str();
+            std::cout << "Prefix: " << prefix << std::endl;
         }
     }
 
@@ -293,6 +303,7 @@ int main(int argc, char* argv[])
     cin.tie(NULL);
 
     fileName.append(".b3d");
+    fileName = prefix + fileName;
     auto fileHandle = std::fstream(fileName.c_str(), std::ios::out | std::ios::binary);
 
     /*header*/
