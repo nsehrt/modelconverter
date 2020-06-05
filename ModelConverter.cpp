@@ -55,6 +55,7 @@ public:
 
 std::string filePath, fileName, prefix;
 uint32_t estimatedFileSize = 0;
+UINT rotateX = 1;
 
 int main(int argc, char* argv[])
 {
@@ -69,7 +70,7 @@ int main(int argc, char* argv[])
         std::cout << "ModelConverter B3D 1.1\nPath to model file: " << flush;
 #if _DEBUG
 #ifndef M3D_LOAD
-        filePath = "C:\\Users\\n_seh\\Desktop\\temp\\palm.fbx";
+        filePath = "C:\\Users\\n_seh\\Desktop\\blender\\geo.fbx";
 #else
         filePath = "skull.m3d";
 #endif
@@ -96,6 +97,12 @@ int main(int argc, char* argv[])
             prefix = prefixss.str();
             std::cout << "Prefix: " << prefix << std::endl;
         }
+
+        if (argc > 4)
+        {
+            rotateX = atoi(argv[4]);
+        }
+
     }
 
 
@@ -246,9 +253,9 @@ int main(int argc, char* argv[])
         {
             for (auto& v : m->vertices)
             {
-                v.Position.x -= center.x;
-                v.Position.y -= center.y;
-                v.Position.z -= center.z;
+                //v.Position.x -= center.x;
+                //v.Position.y -= center.y;
+                //v.Position.z -= center.z;
 
 
                 if (scaleFactor != 0.0f)
@@ -256,6 +263,19 @@ int main(int argc, char* argv[])
                     DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
                     XMVECTOR a = XMLoadFloat3(&xm);
                     a = XMVectorScale(a, scaleFactor);
+                    XMStoreFloat3(&xm, a);
+
+                    v.Position.x = xm.x;
+                    v.Position.y = xm.y;
+                    v.Position.z = xm.z;
+                }
+
+                if (rotateX != 0)
+                {
+                    DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
+                    XMVECTOR a = XMLoadFloat3(&xm);
+                    XMMATRIX m = XMMatrixRotationX(XM_PIDIV2 * rotateX);
+                    a = XMVector3Transform(a, m);
                     XMStoreFloat3(&xm, a);
 
                     v.Position.x = xm.x;
