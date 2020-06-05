@@ -13,14 +13,24 @@
 
 using namespace DirectX;
 
-/*alternative load for m3d*/
-//#define M3D_LOAD
-
 #pragma warning( disable : 26454 )
 using namespace std;
 typedef unsigned int UINT;
 typedef unsigned char BYTE;
 
+struct uint4
+{
+    uint4() : x(), y(), z(), w() { RtlSecureZeroMemory(this, sizeof(this)); }
+    uint4(UINT _x, UINT _y, UINT _z, UINT _w) : x(_x), y(_y), z(_z), w(_w) {}
+    UINT x, y, z, w;
+};
+
+struct float4
+{
+    float4() : x(), y(), z(), w() { RtlSecureZeroMemory(this, sizeof(this)); }
+    float4(float _x, float _y, float _z, float _w) : x(_x), y(_y), z(_z), w(_w) {}
+    float x, y, z, w;
+};
 
 struct float3
 {
@@ -43,6 +53,8 @@ struct Vertex
     float2 Texture;
     float3 Normal;
     float3 TangentU;
+    float4 BlendWeights;
+    uint4 BlendIndices;
 };
 
 struct Mesh
@@ -53,27 +65,71 @@ public:
     std::string materialName;
 };
 
+struct Bone
+{
+    std::string Name;
+    aiBone* AIBone;
+    int Index = -1;
+    std::string ParentName;
+    int ParentIndex = -1;
+};
+
 std::string filePath, fileName, prefix;
 uint32_t estimatedFileSize = 0;
 UINT rotateX = 1;
 
+int findParentBone(std::vector<Bone>& bones, aiNode* node)
+{
+    int result = -1;
+    aiNode* wNode = node->mParent;
+
+    while (wNode)
+    {
+        for (int i = 0; i < bones.size(); i++)
+        {
+            if (bones[i].Name == wNode->mName.C_Str())
+            {
+                result = i;
+                goto skip;
+            }
+        }
+
+        wNode = wNode->mParent;
+    }
+
+    skip:
+    return result;
+}
+
+int findIndexInBones(std::vector<Bone>& bones, const std::string& name)
+{
+    for (int i = 0; i < bones.size(); i++)
+    {
+        if (bones[i].Name == name)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 int main(int argc, char* argv[])
 {
+
+     /*figure out which file to open*/
     Assimp::Importer fbxImport;
     vector<Mesh*> meshes, vmeshes;
+    std::vector<Bone> bones;
     float scaleFactor = 0.0f;
 
     prefix = "";
 
     if (argc < 2)
     {
-        std::cout << "ModelConverter B3D 1.1\nPath to model file: " << flush;
+        std::cout << "SkinnedModelConverter S3D 0.1\nPath to model file: " << flush;
 #if _DEBUG
-#ifndef M3D_LOAD
         filePath = "C:\\Users\\n_seh\\Desktop\\blender\\geo.fbx";
-#else
-        filePath = "skull.m3d";
-#endif
 #else
         cin >> filePath;
 #endif
@@ -106,6 +162,7 @@ int main(int argc, char* argv[])
     }
 
 
+    /* open the file*/
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
@@ -113,56 +170,7 @@ int main(int argc, char* argv[])
     _splitpath_s(filePath.c_str(), NULL, 0, NULL, 0, id, 1024, NULL, 0);
     fileName = id;
 
-#ifdef M3D_LOAD
-    /*************************************************/
 
-    std::ifstream fin(filePath);
-
-    if (!fin)
-    {
-        return false;
-    }
-
-    UINT vcount = 0;
-    UINT tcount = 0;
-    std::string ignore;
-
-    fin >> ignore >> vcount;
-    fin >> ignore >> tcount;
-    fin >> ignore >> ignore >> ignore >> ignore;
-
-    meshes.push_back(new Mesh());
-    meshes[0]->vertices.resize(vcount);
-
-    for (UINT i = 0; i < vcount; ++i)
-    {
-        fin >> meshes[0]->vertices[i].Position.x >> meshes[0]->vertices[i].Position.y >> meshes[0]->vertices[i].Position.z;
-        meshes[0]->vertices[i].Texture.u = 0.f;
-        meshes[0]->vertices[i].Texture.v = 0.f;
-        fin >> meshes[0]->vertices[i].Normal.x >> meshes[0]->vertices[i].Normal.y >> meshes[0]->vertices[i].Normal.z;
-        meshes[0]->vertices[i].TangentU.x = 0.f;
-        meshes[0]->vertices[i].TangentU.y = 0.f;
-        meshes[0]->vertices[i].TangentU.z = 0.f;
-    }
-
-    fin >> ignore;
-    fin >> ignore;
-    fin >> ignore;
-
-    int indexCount = 3 * tcount;
-    meshes[0]->indices.resize(indexCount);
-
-    for (UINT i = 0; i < tcount; ++i)
-    {
-        fin >> meshes[0]->indices[i * 3 + 0] >> meshes[0]->indices[i * 3 + 1] >> meshes[0]->indices[i * 3 + 2];
-    }
-    
-    meshes[0]->materialName = "skull";
-
-    fin.close();
-
-    /*************************************************/
-#else
     const aiScene* loadedScene = fbxImport.ReadFile(filePath, aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_ConvertToLeftHanded);
 
     if (!loadedScene)
@@ -173,8 +181,8 @@ int main(int argc, char* argv[])
 
     /*reserve memory for meshes*/
     meshes.reserve(loadedScene->mNumMeshes);
-    
-    std::cout << "Model contains " << loadedScene->mNumMeshes << " meshes!\n" << endl;
+
+    std::cout << "Model contains " << loadedScene->mNumMeshes << " meshes!\n\n" << endl;
 
     int i = 0;
 
@@ -183,6 +191,97 @@ int main(int argc, char* argv[])
 
     XMVECTOR vMin = XMLoadFloat3(&cMin);
     XMVECTOR vMax = XMLoadFloat3(&cMax);
+
+    /*load bones from first mesh*/
+    aiMesh* fMesh = loadedScene->mMeshes[0];
+    bones.resize(fMesh->mNumBones);
+
+    for (UINT i = 0; i < fMesh->mNumBones; i++)
+    {
+        bones[i].AIBone = fMesh->mBones[i];
+        bones[i].Name = bones[i].AIBone->mName.C_Str();
+        bones[i].Index = i;
+    }
+
+    aiNode* rootNode = loadedScene->mRootNode;
+    
+    for (auto& b : bones)
+    {
+        aiNode* fNode = rootNode->FindNode(b.Name.c_str());
+
+        if (fNode)
+        {
+            
+            b.ParentIndex = findParentBone(bones, fNode);
+            if(b.ParentIndex >= 0)
+            b.ParentName = bones[b.ParentIndex].Name;
+
+        }
+        else
+        {
+            b.ParentIndex = -1;
+        }
+    }
+
+    std::sort(bones.begin(), bones.end(), [](const Bone& a, const Bone& b)->bool
+              {
+                  if (a.ParentIndex == b.ParentIndex)
+                  {
+                      return a.Index < b.Index;
+                  }
+                  else
+                  {
+                      return a.ParentIndex < b.ParentIndex;
+                  }
+                  
+              });
+
+    for (int i = 0; i < bones.size(); i++)
+    {
+        bones[i].Index = i;
+    }
+
+    for (int i = 0; i < bones.size(); i++)
+    {
+        bones[i].ParentIndex = findIndexInBones(bones, bones[i].ParentName);
+    }
+
+    std::vector<int> testHierarchy;
+
+    testHierarchy.push_back(bones[0].Index);
+    bool hTestFailed = false;
+
+    for (int i = 1; i < bones.size(); i++)
+    {
+        bool found = false;
+
+        for (int j = 0; j < testHierarchy.size(); j++)
+        {
+            if (bones[i].ParentIndex == testHierarchy[j])
+                found = true;
+        }
+
+        if (!found)
+        {
+            std::cout << "Failed hierarchy test!\n\n";
+            hTestFailed = true;
+        }
+        else
+        {
+            testHierarchy.push_back(bones[i].Index);
+        }
+
+    }
+
+    if(!hTestFailed)
+    std::cout << "Hierarchy test successful\n\n";
+
+    for (const auto& b : bones)
+    {
+        std::cout << "Bone " << b.Index << " (" << b.Name << ") is a child of " << b.ParentIndex << " (" << (b.ParentIndex > -1 ? bones[b.ParentIndex].Name : "-1") << ")" << std::endl;
+    }
+
+    std::cout << std::endl;
 
     for (UINT j = 0; j < loadedScene->mNumMeshes; j++)
     {
@@ -196,7 +295,7 @@ int main(int argc, char* argv[])
         std::cout<<"Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << endl;
 
         std::cout << "Input name of material for " << mesh->mName.C_Str() << ": ";
-        getline(std::cin, meshes[i]->materialName);
+        std::getline(std::cin, meshes[i]->materialName);
 
         if (i > 0 && meshes[i]->materialName == "")
         {
@@ -263,7 +362,7 @@ int main(int argc, char* argv[])
                     DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
                     XMVECTOR a = XMLoadFloat3(&xm);
                     a = XMVectorScale(a, scaleFactor);
-                    XMStoreFloat3(&xm, a);
+                    DirectX::XMStoreFloat3(&xm, a);
 
                     v.Position.x = xm.x;
                     v.Position.y = xm.y;
@@ -276,7 +375,7 @@ int main(int argc, char* argv[])
                     XMVECTOR a = XMLoadFloat3(&xm);
                     XMMATRIX m = XMMatrixRotationX(XM_PIDIV2 * rotateX);
                     a = XMVector3Transform(a, m);
-                    XMStoreFloat3(&xm, a);
+                    DirectX::XMStoreFloat3(&xm, a);
 
                     v.Position.x = xm.x;
                     v.Position.y = xm.y;
@@ -302,7 +401,7 @@ int main(int argc, char* argv[])
 
         i++;
     }
-#endif
+
     auto endTime = std::chrono::high_resolution_clock::now();
 
     estimatedFileSize += 5;
@@ -320,7 +419,7 @@ int main(int argc, char* argv[])
     startTime = std::chrono::high_resolution_clock::now();
 
     std::ios_base::sync_with_stdio(false);
-    cin.tie(NULL);
+    std::cin.tie(NULL);
 
     fileName.append(".b3d");
     fileName = prefix + fileName;
@@ -364,9 +463,9 @@ int main(int argc, char* argv[])
             Tangent.z = meshes[i]->vertices[v].TangentU.z;
 
 #ifndef M3D_LOAD
-            XMStoreFloat3(&Position, XMVector3Transform(XMLoadFloat3(&Position), XMMatrixRotationX(XM_PIDIV2)));
-            XMStoreFloat3(&Normal, XMVector3Transform(XMLoadFloat3(&Normal), XMMatrixRotationX(XM_PIDIV2)));
-            XMStoreFloat3(&Tangent, XMVector3Transform(XMLoadFloat3(&Tangent), XMMatrixRotationX(XM_PIDIV2)));
+            DirectX::XMStoreFloat3(&Position, XMVector3Transform(XMLoadFloat3(&Position), XMMatrixRotationX(XM_PIDIV2)));
+            DirectX::XMStoreFloat3(&Normal, XMVector3Transform(XMLoadFloat3(&Normal), XMMatrixRotationX(XM_PIDIV2)));
+            DirectX::XMStoreFloat3(&Tangent, XMVector3Transform(XMLoadFloat3(&Tangent), XMMatrixRotationX(XM_PIDIV2)));
 #endif
 
             /*position*/
