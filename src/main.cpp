@@ -3,7 +3,7 @@
 #include "ModelConverter.h"
 
 const int VERSION_MAJOR = 0;
-const int VERSION_MINOR = 2;
+const int VERSION_MINOR = 4;
 
 std::vector<std::string> split(const std::string& s, char delim)
 {
@@ -26,14 +26,9 @@ int main(int argc, char* argv[])
 
     std::cout << "SkinnedModelConverter S3D " << VERSION_MAJOR << "." << VERSION_MINOR << " (Assimp Version " << mConverter.getVersionString() << ")\n" << std::endl;
     std::cout << "===================================================\n\n";
-    if (argc < 2)
-    {
-        std::cerr << "Not enough parameters!" << std::endl;
-        return -1;
-    }
 
     /*help dialog*/
-    if (std::string(argv[1]) == "-h" || std::string(argv[1]) == "-help")
+    if (argc < 2 || std::string(argv[1]) == "-h" || std::string(argv[1]) == "-help")
     {
         std::cout << "First parameter must be path to file or -h!\n";
         std::cout << "\nPossible parameters:\n";

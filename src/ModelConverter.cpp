@@ -6,57 +6,6 @@
 using namespace DirectX;
 
 
-int findParentBone(std::vector<Bone>& bones, aiNode* node)
-{
-    int result = -1;
-    aiNode* wNode = node->mParent;
-
-    while (wNode)
-    {
-        for (int i = 0; i < bones.size(); i++)
-        {
-            if (bones[i].Name == wNode->mName.C_Str())
-            {
-                result = i;
-                goto skip;
-            }
-        }
-
-        wNode = wNode->mParent;
-    }
-
-    skip:
-    return result;
-}
-
-int findIndexInBones(std::vector<Bone>& bones, const std::string& name)
-{
-    for (int i = 0; i < bones.size(); i++)
-    {
-        if (bones[i].Name == name)
-        {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-bool existsBoneByName(std::vector<Bone>& bones, const std::string& name)
-{
-    bool exists = false;
-
-    for (auto b : bones)
-    {
-        if (b.Name == name)
-            exists = true;
-    }
-
-    return exists;
-}
-
-
-
 
 //int main(int argc, char* argv[])
 //{
@@ -373,263 +322,6 @@ bool existsBoneByName(std::vector<Bone>& bones, const std::string& name)
 //    std::cout << "Finished loading " << fileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms" << std::endl;
 //    std::cout << "Estimated size: " << (estimatedFileSize/1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
 //
-//    /*writing to binary file .b3d*/
-//    startTime = std::chrono::high_resolution_clock::now();
-//
-//    std::ios_base::sync_with_stdio(false);
-//    std::cin.tie(NULL);
-//
-//    fileName.append(".s3d");
-//    fileName = prefix + fileName;
-//    auto fileHandle = std::fstream(fileName.c_str(), std::ios::out | std::ios::binary);
-//
-//    /*header*/
-//    char header[4] = { 0x73, 0x33, 0x64, 0x66 };
-//    fileHandle.write(header, 4);
-//
-//    /*number of meshes*/
-//    char meshSize = (char)meshes.size();
-//    fileHandle.write(reinterpret_cast<const char*>(&meshSize), sizeof(char));
-//
-//    for (char i = 0; i < meshSize; i++)
-//    {
-//        /*material name*/
-//        short stringSize = (short)meshes[i]->materialName.size();
-//        fileHandle.write(reinterpret_cast<const char*>(&stringSize), sizeof(stringSize));
-//        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->materialName[0]), stringSize);
-//
-//        /*num vertices*/
-//        int verticesSize = (int)meshes[i]->vertices.size();
-//        fileHandle.write(reinterpret_cast<const char*>(&verticesSize), sizeof(int));
-//
-//        /*vertices*/
-//        for (int v = 0; v < verticesSize; v++)
-//        {
-//            XMFLOAT3 Position;
-//            Position.x = meshes[i]->vertices[v].Position.x;
-//            Position.y = meshes[i]->vertices[v].Position.y;
-//            Position.z = meshes[i]->vertices[v].Position.z;
-//
-//            XMFLOAT3 Normal;
-//            Normal.x = meshes[i]->vertices[v].Normal.x;
-//            Normal.y = meshes[i]->vertices[v].Normal.y;
-//            Normal.z = meshes[i]->vertices[v].Normal.z;
-//
-//            XMFLOAT3 Tangent;
-//            Tangent.x = meshes[i]->vertices[v].TangentU.x;
-//            Tangent.y = meshes[i]->vertices[v].TangentU.y;
-//            Tangent.z = meshes[i]->vertices[v].TangentU.z;
-//
-//#ifndef M3D_LOAD
-//            DirectX::XMStoreFloat3(&Position, XMVector3Transform(XMLoadFloat3(&Position), XMMatrixRotationX(XM_PIDIV2)));
-//            DirectX::XMStoreFloat3(&Normal, XMVector3Transform(XMLoadFloat3(&Normal), XMMatrixRotationX(XM_PIDIV2)));
-//            DirectX::XMStoreFloat3(&Tangent, XMVector3Transform(XMLoadFloat3(&Tangent), XMMatrixRotationX(XM_PIDIV2)));
-//#endif
-//
-//            /*position*/
-//            fileHandle.write(reinterpret_cast<const char*>(&Position.x), sizeof(float));
-//            fileHandle.write(reinterpret_cast<const char*>(&Position.y), sizeof(float));
-//            fileHandle.write(reinterpret_cast<const char*>(&Position.z), sizeof(float));
-//            /*texture coordinates*/
-//            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Texture.u), sizeof(float));
-//            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Texture.v), sizeof(float));
-//            /*normals*/
-//            fileHandle.write(reinterpret_cast<const char*>(&Normal.x), sizeof(float));
-//            fileHandle.write(reinterpret_cast<const char*>(&Normal.y), sizeof(float));
-//            fileHandle.write(reinterpret_cast<const char*>(&Normal.z), sizeof(float));
-//            /*tangentU*/
-//            fileHandle.write(reinterpret_cast<const char*>(&Tangent.x), sizeof(float));
-//            fileHandle.write(reinterpret_cast<const char*>(&Tangent.y), sizeof(float));
-//            fileHandle.write(reinterpret_cast<const char*>(&Tangent.z), sizeof(float));
-//
-//        }
-//
-//
-//        /*num indices*/
-//        int indicesSize = (int)meshes[i]->indices.size();
-//        fileHandle.write(reinterpret_cast<const char*>(&indicesSize), sizeof(int));
-//
-//        /*indices*/
-//        for (int j = 0; j < indicesSize; j++)
-//        {
-//            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->indices[j]), sizeof(uint32_t));
-//        }
-//
-//    }
-//
-//    fileHandle.close();
-//    
-//    endTime = std::chrono::high_resolution_clock::now();
-//    std::cout << "\nFinished writing " << fileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms\n" << std::endl;
-//
-//    /*verification*/
-//    std::cout << "Verifying s3d file is correct...\n";
-//
-//    /*load b3d file*/
-//    std::streampos fileSize;
-//    std::ifstream vFile(fileName, std::ios::binary);
-//
-//    /*file size*/
-//    vFile.seekg(0, std::ios::end);
-//    fileSize = vFile.tellg();
-//    vFile.seekg(0, std::ios::beg);
-//
-//    /*check header*/
-//    bool hr = true;
-//    std::cout << "header...\t";
-//
-//    char buff[4] = { 's', '3', 'd', 'f' };
-//
-//    for (int i = 0; i < 4; i++)
-//    {
-//        char t;
-//        vFile.read(&t, sizeof(char));
-//
-//        if (t != buff[i])
-//        {
-//            hr = false;
-//            break;
-//        }
-//    }
-//
-//    if (hr == false)
-//    {
-//        std::cout << "not a s3d file\n";
-//    }
-//    else
-//    {
-//        std::cout << "ok\n";
-//    }
-//
-//    /*num meshes*/
-//    std::cout << "num meshes...\t";
-//    char vNumMeshes = 0;
-//    vFile.read((char*)(&vNumMeshes), sizeof(char));
-//
-//    if (vNumMeshes == meshes.size())
-//    {
-//        std::cout << "ok (" << (int)vNumMeshes << ")\n";
-//    }
-//    else
-//    {
-//        std::cout << "failed\n";
-//    }
-//
-//    for (char i = 0; i < vNumMeshes; i++)
-//    {
-//        vmeshes.push_back(new Mesh());
-//
-//        /*material*/
-//        std::cout << "material...\t";
-//
-//        short slen = 0;
-//        vFile.read((char*)(&slen), sizeof(short));
-//
-//        char* mat = new char[slen + 1];
-//        vFile.read(mat, slen);
-//        mat[slen] = '\0';
-//
-//        if (meshes[i]->materialName.compare(mat) == 0)
-//        {
-//            std::cout << "ok (" << mat << ")\n";
-//        }
-//        else
-//        {
-//            std::cout << "failed" << std::endl;
-//        }
-//
-//
-//        /*num vertices*/
-//        std::cout << "num vertices...\t";
-//
-//        int vnVert = 0;
-//        vFile.read((char*)(&vnVert), sizeof(int));
-//
-//        if (vnVert == meshes[i]->vertices.size())
-//        {
-//            std::cout << "ok (" << vnVert << ")\n";
-//        }
-//        else
-//        {
-//            std::cout << "failed" << std::endl;
-//        }
-//
-//        vmeshes[i]->vertices.resize(vnVert);
-//
-//        /*vertices*/
-//        std::cout << "vertices...\t";
-//
-//        for (int j = 0; j < vnVert; j++)
-//        {
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].Position.x), sizeof(float));
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].Position.y), sizeof(float));
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].Position.z), sizeof(float));
-//
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].Texture.u), sizeof(float));
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].Texture.v), sizeof(float));
-//
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].Normal.x), sizeof(float));
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].Normal.y), sizeof(float));
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].Normal.z), sizeof(float));
-//
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].TangentU.x), sizeof(float));
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].TangentU.y), sizeof(float));
-//            vFile.read((char*)(&vmeshes[i]->vertices[j].TangentU.z), sizeof(float));
-//        }
-//
-//
-//        if(vmeshes[i]->vertices[0].Position.z == vmeshes[i]->vertices[0].Position.z &&
-//           vmeshes[i]->vertices[0].TangentU.x == vmeshes[i]->vertices[0].TangentU.x)
-//        {
-//            std::cout << "ok" << std::endl;
-//        }
-//        else
-//        {
-//            std::cout << "failed" << std::endl;
-//        }
-//
-//        
-//
-//        /*num indices*/
-//        std::cout << "num indices...\t";
-//
-//        int vInd = 0;
-//        vFile.read((char*)(&vInd), sizeof(int));
-//
-//        if (vInd == meshes[i]->indices.size())
-//        {
-//            std::cout << "ok (" << vInd << ")\n";
-//        }
-//        else
-//        {
-//            std::cout << "failed - " << vInd << " vs " << meshes[i]->indices.size() << std::endl;
-//        }
-//
-//        /*indices*/
-//        std::cout << "indices...\t";
-//
-//        vmeshes[i]->indices.resize(vInd);
-//
-//        for (int j = 0; j < vInd; j++)
-//        {
-//            vFile.read((char*)(&vmeshes[i]->indices[j]), sizeof(int));
-//        }
-//
-//        
-//        if (vmeshes[i]->indices == meshes[i]->indices)
-//        {
-//            std::cout << "ok" << std::endl;
-//        }
-//        else
-//        {
-//            std::cout << "failed" << std::endl;
-//        }
-//
-//
-//    }
-//
-//    return true;
-//
 //}
 
 bool ModelConverter::load(InitData& initData)
@@ -665,7 +357,33 @@ bool ModelConverter::load(InitData& initData)
 
     if (rigged)
     {
-        processStatus = processRigged(loadedScene);
+        baseFileName.append(".s3d");
+        writeFileName = iData.Prefix + baseFileName;
+
+        processStatus = loadRigged(loadedScene);
+
+        if (!processStatus)
+        {
+            std::cerr << "Failed to load rigged model!" << std::endl;
+            return processStatus;
+        }
+
+        processStatus = writeS3D();
+
+        if (!processStatus)
+        {
+            std::cerr << "Failed to write rigged model to " << writeFileName << "!" << std::endl;
+            return processStatus;
+        }
+
+        processStatus = verifyS3D();
+
+        if (!processStatus)
+        {
+            std::cerr << "Failed to verify rigged model!" << writeFileName << "!" << std::endl;
+            return processStatus;
+        }
+
     }
     else
     {
@@ -850,7 +568,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
     return true;
 }
 
-bool ModelConverter::processRigged(const aiScene* scene)
+bool ModelConverter::loadRigged(const aiScene* scene)
 {
     return false;
 }
@@ -945,6 +663,11 @@ bool ModelConverter::writeB3D()
     std::cout << "\nFinished writing " << writeFileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms\n" << std::endl;
 
     return true;
+}
+
+bool ModelConverter::writeS3D()
+{
+    return false;
 }
 
 bool ModelConverter::verifyB3D()
@@ -1116,4 +839,9 @@ bool ModelConverter::verifyB3D()
     }
 
     return true;
+}
+
+bool ModelConverter::verifyS3D()
+{
+    return false;
 }

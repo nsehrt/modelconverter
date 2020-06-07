@@ -106,7 +106,7 @@ public:
 
     bool load(InitData& initData);
     bool loadStatic(const aiScene* scene);
-    bool processRigged(const aiScene* scene);
+    bool loadRigged(const aiScene* scene);
 
     bool writeB3D();
     bool writeS3D();
@@ -131,4 +131,54 @@ private:
     std::string writeFileName = "";
     InitData iData;
     std::chrono::steady_clock::time_point startTime;
+
+
+    int findParentBone(std::vector<Bone>& bones, aiNode* node)
+    {
+        int result = -1;
+        aiNode* wNode = node->mParent;
+
+        while (wNode)
+        {
+            for (int i = 0; i < bones.size(); i++)
+            {
+                if (bones[i].Name == wNode->mName.C_Str())
+                {
+                    result = i;
+                    goto skip;
+                }
+            }
+
+            wNode = wNode->mParent;
+        }
+
+    skip:
+        return result;
+    }
+
+    int findIndexInBones(std::vector<Bone>& bones, const std::string& name)
+    {
+        for (int i = 0; i < bones.size(); i++)
+        {
+            if (bones[i].Name == name)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    bool existsBoneByName(std::vector<Bone>& bones, const std::string& name)
+    {
+        bool exists = false;
+
+        for (auto b : bones)
+        {
+            if (b.Name == name)
+                exists = true;
+        }
+
+        return exists;
+    }
 };
