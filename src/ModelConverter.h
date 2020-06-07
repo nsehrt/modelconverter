@@ -74,6 +74,14 @@ public:
     std::string materialName;
 };
 
+struct MeshRigged
+{
+public:
+    std::vector<SkinnedVertex> vertices;
+    std::vector<uint32_t> indices;
+    std::string materialName;
+};
+
 struct Bone
 {
     std::string Name;
@@ -123,7 +131,8 @@ public:
 
 private:
     Assimp::Importer importer;
-    std::vector<Mesh*> meshes, vmeshes;
+    std::vector<Mesh*> bMeshes, bMeshesV;
+    std::vector<MeshRigged*> rMeshes, rMeshesV;
     std::vector<Bone> bones;
     UINT estimatedFileSize = 0;
 

@@ -7,323 +7,6 @@ using namespace DirectX;
 
 
 
-//int main(int argc, char* argv[])
-//{
-//
-//
-//    /*reserve memory for meshes*/
-//    meshes.reserve(loadedScene->mNumMeshes);
-//
-//    std::cout << "Model contains " << loadedScene->mNumMeshes << " meshes!\n\n" << std::endl;
-//
-//    int i = 0;
-//
-//    XMFLOAT3 cMin(+FLT_MAX, +FLT_MAX, +FLT_MAX);
-//    XMFLOAT3 cMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-//
-//    XMVECTOR vMin = XMLoadFloat3(&cMin);
-//    XMVECTOR vMax = XMLoadFloat3(&cMax);
-//
-//    /*load bones from meshes*/
-//
-//    std::vector<UINT> totalWeight(loadedScene->mNumMeshes);
-//    std::vector<float> totalWeightSum(loadedScene->mNumMeshes);
-//
-//    for (UINT i = 0; i < loadedScene->mNumMeshes; i++)
-//    {
-//        aiMesh* fMesh = loadedScene->mMeshes[i];
-//        std::cout << "Processing mesh " << fMesh->mName.C_Str() << " (" << fMesh->mNumBones << " Bones)." << std::endl;
-//
-//        for (UINT j = 0; j < fMesh->mNumBones; j++)
-//        {
-//            totalWeight[i] += fMesh->mBones[j]->mNumWeights;
-//
-//            for (UINT k = 0; k < fMesh->mBones[j]->mNumWeights; k++)
-//            {
-//                totalWeightSum[i] += fMesh->mBones[j]->mWeights[k].mWeight;
-//            }
-//
-//            if (existsBoneByName(bones, fMesh->mBones[j]->mName.C_Str()))
-//            {
-//                continue;
-//            }
-//
-//            Bone b;
-//
-//            b.AIBone = fMesh->mBones[j];
-//            b.Name = fMesh->mBones[j]->mName.C_Str();
-//            b.Index = j;
-//
-//            bones.push_back(b);
-//        }
-//
-//    }
-//
-//    for (UINT i = 0; i < loadedScene->mNumMeshes; i++)
-//    {
-//        std::cout << "Mesh " << i << " has a total of " << totalWeight[i] << " Weights (" << totalWeightSum[i] << ")" << std::endl;
-//    }
-//
-//    std::cout << "Found a total of " << bones.size() << " bones." << std::endl;
-//
-//    aiNode* rootNode = loadedScene->mRootNode;
-//    
-//    for (auto& b : bones)
-//    {
-//        aiNode* fNode = rootNode->FindNode(b.Name.c_str());
-//
-//        if (fNode)
-//        {
-//            
-//            b.ParentIndex = findParentBone(bones, fNode);
-//            if(b.ParentIndex >= 0)
-//            b.ParentName = bones[b.ParentIndex].Name;
-//
-//        }
-//        else
-//        {
-//            b.ParentIndex = -1;
-//        }
-//    }
-//
-//    std::sort(bones.begin(), bones.end(), [](const Bone& a, const Bone& b)->bool
-//              {
-//                  if (a.ParentIndex == b.ParentIndex)
-//                  {
-//                      return a.Index < b.Index;
-//                  }
-//                  else
-//                  {
-//                      return a.ParentIndex < b.ParentIndex;
-//                  }
-//                  
-//              });
-//
-//    for (int i = 0; i < bones.size(); i++)
-//    {
-//        bones[i].Index = i;
-//    }
-//
-//    for (int i = 0; i < bones.size(); i++)
-//    {
-//        bones[i].ParentIndex = findIndexInBones(bones, bones[i].ParentName);
-//    }
-//
-//    std::vector<int> testHierarchy;
-//
-//    testHierarchy.push_back(bones[0].Index);
-//    bool hTestFailed = false;
-//
-//    for (int i = 1; i < bones.size(); i++)
-//    {
-//        bool found = false;
-//
-//        for (int j = 0; j < testHierarchy.size(); j++)
-//        {
-//            if (bones[i].ParentIndex == testHierarchy[j])
-//                found = true;
-//        }
-//
-//        if (!found)
-//        {
-//            std::cout << "Failed hierarchy test!\n\n";
-//            hTestFailed = true;
-//        }
-//        else
-//        {
-//            testHierarchy.push_back(bones[i].Index);
-//        }
-//
-//    }
-//
-//    if(!hTestFailed)
-//    std::cout << "Hierarchy test successful\n\n";
-//
-//    for (const auto& b : bones)
-//    {
-//        std::cout << "Bone " << b.Index << " (" << b.Name << ") is a child of " << b.ParentIndex << " (" << (b.ParentIndex > -1 ? bones[b.ParentIndex].Name : "-1") << ")" << std::endl;
-//        std::cout << b.AIBone->mOffsetMatrix.a1 << " " << b.AIBone->mOffsetMatrix.a2 << " " << b.AIBone->mOffsetMatrix.a3 << " " << b.AIBone->mOffsetMatrix.a4 << "\n";
-//        std::cout << b.AIBone->mOffsetMatrix.b1 << " " << b.AIBone->mOffsetMatrix.b2 << " " << b.AIBone->mOffsetMatrix.b3 << " " << b.AIBone->mOffsetMatrix.b4 << "\n";
-//        std::cout << b.AIBone->mOffsetMatrix.c1 << " " << b.AIBone->mOffsetMatrix.c2 << " " << b.AIBone->mOffsetMatrix.c3 << " " << b.AIBone->mOffsetMatrix.c4 << "\n";
-//        std::cout << b.AIBone->mOffsetMatrix.d1 << " " << b.AIBone->mOffsetMatrix.d2 << " " << b.AIBone->mOffsetMatrix.d3 << " " << b.AIBone->mOffsetMatrix.d4 << "\n";
-//    }
-//
-//    std::cout << std::endl;
-//
-//    for (UINT j = 0; j < loadedScene->mNumMeshes; j++)
-//    {
-//        aiMesh* mesh = loadedScene->mMeshes[i];
-//
-//        /*reserve memory for vertices*/
-//        meshes.push_back(new Mesh());
-//        meshes[i]->vertices.reserve(mesh->mNumVertices);
-//        estimatedFileSize += mesh->mNumVertices * sizeof(Vertex);
-//
-//        std::cout<<"Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << std::endl;
-//
-//        std::cout << "Input name of material for " << mesh->mName.C_Str() << ": ";
-//        std::getline(std::cin, meshes[i]->materialName);
-//
-//        if (i > 0 && meshes[i]->materialName == "")
-//        {
-//            meshes[i]->materialName = meshes[i - 1]->materialName;
-//        }
-//
-//        if (meshes[i]->materialName == "del")
-//        {
-//            meshes.pop_back();
-//            continue;
-//        }
-//
-//        /*get vertices: positions normals tex coords and tangentu */
-//
-//        for (UINT v = 0; v < mesh->mNumVertices; v++)
-//        {
-//
-//            aiVector3D tex(0);
-//            aiVector3D tangU(0);
-//            aiVector3D pos = mesh->mVertices[v];
-//            aiVector3D norm = mesh->mNormals[v];
-//
-//            if (mesh->HasTangentsAndBitangents() != 0)
-//            {
-//                tangU = mesh->mTangents[v];
-//            }
-//            
-//            tex = mesh->mTextureCoords[0][v];
-//            
-//            /*convert to vertex data format*/
-//            meshes[i]->vertices.push_back(Vertex(float3(pos.x, pos.y, pos.z),
-//                                             float2(tex.x, tex.y),
-//                                          float3(norm.x, norm.y, norm.z),
-//                                          float3(tangU.x, tangU.y, tangU.z)
-//            ));
-//
-//            XMFLOAT3 pV3 = { pos.x, pos.y, pos.z };
-//
-//            vMin = XMVectorMin(vMin, XMLoadFloat3(&pV3));
-//            vMax = XMVectorMax(vMax, XMLoadFloat3(&pV3));
-//
-//        }
-//
-//        //XMFLOAT3 center;
-//        //DirectX::XMStoreFloat3(&center, 0.5f * (vMin + vMax));
-//
-//        //std::cout << "Center is " << center.x << ", " << center.y << ", " << center.z << std::endl;
-//        //if (scaleFactor != 0.0f)
-//        //{
-//        //    std::cout << "Scaling with factor " << scaleFactor << std::endl;
-//        //}
-//
-//        //for (auto& m : meshes)
-//        //{
-//        //    for (auto& v : m->vertices)
-//        //    {
-//        //        //v.Position.x -= center.x;
-//        //        //v.Position.y -= center.y;
-//        //        //v.Position.z -= center.z;
-//
-//
-//        //        if (scaleFactor != 0.0f)
-//        //        {
-//        //            DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
-//        //            XMVECTOR a = XMLoadFloat3(&xm);
-//        //            a = XMVectorScale(a, scaleFactor);
-//        //            DirectX::XMStoreFloat3(&xm, a);
-//
-//        //            v.Position.x = xm.x;
-//        //            v.Position.y = xm.y;
-//        //            v.Position.z = xm.z;
-//        //        }
-//
-//        //        if (rotateX != 0)
-//        //        {
-//        //            DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
-//        //            XMVECTOR a = XMLoadFloat3(&xm);
-//        //            XMMATRIX m = XMMatrixRotationX(XM_PIDIV2 * rotateX);
-//        //            a = XMVector3Transform(a, m);
-//        //            DirectX::XMStoreFloat3(&xm, a);
-//
-//        //            v.Position.x = xm.x;
-//        //            v.Position.y = xm.y;
-//        //            v.Position.z = xm.z;
-//        //        }
-//
-//        //    }
-//        //}
-//
-//        /*get indices*/
-//        meshes[i]->indices.reserve((int)(mesh->mNumFaces) * 3);
-//        estimatedFileSize += (int)(mesh->mNumFaces) * 3 * sizeof(uint32_t);
-//
-//        std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces * 3 << " faces\n" << std::endl;
-//
-//
-//        for (UINT j = 0; j < mesh->mNumFaces; j++)
-//        {
-//            meshes[i]->indices.push_back(mesh->mFaces[j].mIndices[0]);
-//            meshes[i]->indices.push_back(mesh->mFaces[j].mIndices[1]);
-//            meshes[i]->indices.push_back(mesh->mFaces[j].mIndices[2]);
-//        }
-//
-//        i++;
-//    }
-//
-//    /*add weights from bones to vertices*/
-//    for (const auto& b : bones)
-//    {
-//
-//        for (UINT k = 0; k < b.AIBone->mNumWeights; k++)
-//        {
-//            meshes[0]->vertices[b.AIBone->mWeights[k].mVertexId].BlendIndices.push_back(k);
-//            meshes[0]->vertices[b.AIBone->mWeights[k].mVertexId].BlendWeights.push_back(b.AIBone->mWeights[k].mWeight);
-//        }
-//
-//    }
-//
-//    for (const auto& v : meshes[0]->vertices)
-//    {
-//        if (v.BlendIndices.size() > 4)
-//        {
-//            std::cout << "Illegal amount of blend indices!" << std::endl;
-//        }
-//
-//        float acc = 0.0f;
-//
-//        for (const auto& f : v.BlendWeights)
-//        {
-//            acc += f;
-//        }
-//
-//        if (acc > 1.01f)
-//        {
-//            std::cout << "Blend Weight sum over 1! " << acc << std::endl;
-//        }
-//
-//        if (acc < 0.9f)
-//        {
-//            std::cout << "Blend Weight sum under 0.9! " << acc << std::endl;
-//        }
-//
-//    }
-//
-//    
-//
-//    auto endTime = std::chrono::high_resolution_clock::now();
-//
-//    estimatedFileSize += 5;
-//
-//    for (int i = 0; i < meshes.size(); i++)
-//    {
-//        estimatedFileSize += 3 * 3 * 4 + 9;
-//        estimatedFileSize += 6 + 3 * 10;
-//    }
-//
-//    std::cout << "Finished loading " << fileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms" << std::endl;
-//    std::cout << "Estimated size: " << (estimatedFileSize/1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
-//
-//}
-
 bool ModelConverter::load(InitData& initData)
 {
     startTime = std::chrono::high_resolution_clock::now();
@@ -380,7 +63,7 @@ bool ModelConverter::load(InitData& initData)
 
         if (!processStatus)
         {
-            std::cerr << "Failed to verify rigged model!" << writeFileName << "!" << std::endl;
+            std::cerr << "Failed to verify rigged model! (" << writeFileName << ")" << std::endl;
             return processStatus;
         }
 
@@ -410,7 +93,7 @@ bool ModelConverter::load(InitData& initData)
 
         if (!processStatus)
         {
-            std::cerr << "Failed to verify static model!" << writeFileName << "!" << std::endl;
+            std::cerr << "Failed to verify static model! (" << writeFileName << ")" << std::endl;
             return processStatus;
         }
 
@@ -419,6 +102,8 @@ bool ModelConverter::load(InitData& initData)
     return processStatus;
 }
 
+/************LOAD*******************/
+
 /*load and save a static model*/
 bool ModelConverter::loadStatic(const aiScene* scene)
 {
@@ -426,7 +111,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
     std::cout << iData << "\n===================================================\n\n";
 
-    meshes.reserve(scene->mNumMeshes);
+    bMeshes.reserve(scene->mNumMeshes);
 
     std::cout << "Model contains " << scene->mNumMeshes << " mesh(es)!\n" << std::endl;
 
@@ -443,23 +128,24 @@ bool ModelConverter::loadStatic(const aiScene* scene)
         aiMesh* mesh = scene->mMeshes[i];
 
         /*reserve memory for vertices*/
-        meshes.push_back(new Mesh());
-        meshes[i]->vertices.reserve(mesh->mNumVertices);
+
+        bMeshes.push_back(new Mesh());
+        bMeshes[i]->vertices.reserve(mesh->mNumVertices);
         estimatedFileSize += mesh->mNumVertices * sizeof(Vertex);
 
         std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << std::endl;
 
         std::cout << "Input name of material for " << mesh->mName.C_Str() << ": ";
-        getline(std::cin, meshes[i]->materialName);
+        getline(std::cin, bMeshes[i]->materialName);
 
-        if (i > 0 && meshes[i]->materialName == "")
+        if (i > 0 && bMeshes[i]->materialName == "")
         {
-            meshes[i]->materialName = meshes[(INT_PTR)i - 1]->materialName;
+            bMeshes[i]->materialName = bMeshes[(INT_PTR)i - 1]->materialName;
         }
 
-        if (meshes[i]->materialName == "del")
+        if (bMeshes[i]->materialName == "del")
         {
-            meshes.pop_back();
+            bMeshes.pop_back();
             continue;
         }
 
@@ -474,7 +160,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
             aiVector3D tex = mesh->mTextureCoords[0][v];
 
             /*convert to vertex data format*/
-            meshes[i]->vertices.push_back(Vertex(float3(pos.x, pos.y, pos.z),
+            bMeshes[i]->vertices.push_back(Vertex(float3(pos.x, pos.y, pos.z),
                                           float2(tex.x, tex.y),
                                           float3(norm.x, norm.y, norm.z),
                                           float3(tangU.x, tangU.y, tangU.z)
@@ -487,6 +173,9 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
         }
 
+
+        /*apply centering and scaling if needed*/
+
         XMFLOAT3 center;
         DirectX::XMStoreFloat3(&center, 0.5f * (vMin + vMax));
 
@@ -496,7 +185,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
             std::cout << "Scaling with factor " << iData.ScaleFactor << std::endl;
         }
 
-        for (auto& m : meshes)
+        for (auto& m : bMeshes)
         {
             for (auto& v : m->vertices)
             {
@@ -519,24 +208,11 @@ bool ModelConverter::loadStatic(const aiScene* scene)
                     v.Position.z = xm.z;
                 }
 
-                //if (rotateX != 0)
-                //{
-                //    DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
-                //    XMVECTOR a = XMLoadFloat3(&xm);
-                //    XMMATRIX m = XMMatrixRotationX(XM_PIDIV2 * rotateX);
-                //    a = XMVector3Transform(a, m);
-                //    XMStoreFloat3(&xm, a);
-
-                //    v.Position.x = xm.x;
-                //    v.Position.y = xm.y;
-                //    v.Position.z = xm.z;
-                //}
-
             }
         }
 
         /*get indices*/
-        meshes[i]->indices.reserve((INT_PTR)(mesh->mNumFaces) * 3);
+        bMeshes[i]->indices.reserve((INT_PTR)(mesh->mNumFaces) * 3);
         estimatedFileSize += (INT_PTR)(mesh->mNumFaces) * sizeof(uint32_t);
 
         std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces << " faces\n" << std::endl;
@@ -544,9 +220,9 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
         for (UINT j = 0; j < mesh->mNumFaces; j++)
         {
-            meshes[i]->indices.push_back(mesh->mFaces[j].mIndices[0]);
-            meshes[i]->indices.push_back(mesh->mFaces[j].mIndices[1]);
-            meshes[i]->indices.push_back(mesh->mFaces[j].mIndices[2]);
+            bMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[0]);
+            bMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[1]);
+            bMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[2]);
         }
 
         i++;
@@ -556,7 +232,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
     estimatedFileSize += 5;
 
-    for (int i = 0; i < meshes.size(); i++)
+    for (int i = 0; i < bMeshes.size(); i++)
     {
         estimatedFileSize += 3 * 3 * 4 + 9;
         estimatedFileSize += 6 + 3 * 10;
@@ -568,11 +244,336 @@ bool ModelConverter::loadStatic(const aiScene* scene)
     return true;
 }
 
+
+
 bool ModelConverter::loadRigged(const aiScene* scene)
 {
-    return false;
+    std::cout << "Processing model in rigged mode.\n" << std::endl;
+
+    std::cout << iData << "\n===================================================\n\n";
+
+    rMeshes.reserve(scene->mNumMeshes);
+
+    std::cout << "Model contains " << scene->mNumMeshes << " mesh(es)!\n" << std::endl;
+
+    int i = 0;
+
+    XMFLOAT3 cMin(+FLT_MAX, +FLT_MAX, +FLT_MAX);
+    XMFLOAT3 cMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+    XMVECTOR vMin = XMLoadFloat3(&cMin);
+    XMVECTOR vMax = XMLoadFloat3(&cMax);
+
+    /*load bones from meshes*/
+
+    std::vector<UINT> totalWeight(scene->mNumMeshes);
+    std::vector<float> totalWeightSum(scene->mNumMeshes);
+
+    for (UINT i = 0; i < scene->mNumMeshes; i++)
+    {
+        aiMesh* fMesh = scene->mMeshes[i];
+        std::cout << "Processing mesh " << fMesh->mName.C_Str() << " (" << fMesh->mNumBones << " Bones)." << std::endl;
+
+        for (UINT j = 0; j < fMesh->mNumBones; j++)
+        {
+            totalWeight[i] += fMesh->mBones[j]->mNumWeights;
+
+            for (UINT k = 0; k < fMesh->mBones[j]->mNumWeights; k++)
+            {
+                totalWeightSum[i] += fMesh->mBones[j]->mWeights[k].mWeight;
+            }
+
+            if (existsBoneByName(bones, fMesh->mBones[j]->mName.C_Str()))
+            {
+                continue;
+            }
+
+            Bone b;
+
+            b.AIBone = fMesh->mBones[j];
+            b.Name = fMesh->mBones[j]->mName.C_Str();
+            b.Index = j;
+
+            bones.push_back(b);
+        }
+
+    }
+
+    for (UINT i = 0; i < scene->mNumMeshes; i++)
+    {
+        std::cout << "Mesh " << i << " has a total of " << totalWeight[i] << " Weights (" << totalWeightSum[i] << ")" << std::endl;
+    }
+
+    std::cout << "Found a total of " << bones.size() << " bones." << std::endl;
+
+    aiNode* rootNode = scene->mRootNode;
+    
+    for (auto& b : bones)
+    {
+        aiNode* fNode = rootNode->FindNode(b.Name.c_str());
+
+        if (fNode)
+        {
+            
+            b.ParentIndex = findParentBone(bones, fNode);
+            if(b.ParentIndex >= 0)
+            b.ParentName = bones[b.ParentIndex].Name;
+
+        }
+        else
+        {
+            b.ParentIndex = -1;
+        }
+    }
+
+    std::sort(bones.begin(), bones.end(), [](const Bone& a, const Bone& b)->bool
+              {
+                  if (a.ParentIndex == b.ParentIndex)
+                  {
+                      return a.Index < b.Index;
+                  }
+                  else
+                  {
+                      return a.ParentIndex < b.ParentIndex;
+                  }
+                  
+              });
+
+    for (int i = 0; i < bones.size(); i++)
+    {
+        bones[i].Index = i;
+    }
+
+    for (int i = 0; i < bones.size(); i++)
+    {
+        bones[i].ParentIndex = findIndexInBones(bones, bones[i].ParentName);
+    }
+
+    std::vector<int> testHierarchy;
+
+    testHierarchy.push_back(bones[0].Index);
+
+    for (int i = 1; i < bones.size(); i++)
+    {
+        bool found = false;
+
+        for (int j = 0; j < testHierarchy.size(); j++)
+        {
+            if (bones[i].ParentIndex == testHierarchy[j])
+                found = true;
+        }
+
+        if (!found)
+        {
+            std::cout << "Failed bone hierarchy test!\n\n";
+            return false;
+        }
+        else
+        {
+            testHierarchy.push_back(bones[i].Index);
+        }
+
+    }
+
+    std::cout << "Bone hierarchy test successful\n\n";
+
+    for (const auto& b : bones)
+    {
+        std::cout << "Bone " << b.Index << " (" << b.Name << ") is a child of " << b.ParentIndex << " (" << (b.ParentIndex > -1 ? bones[b.ParentIndex].Name : "-1") << ")" << std::endl;
+        //std::cout << b.AIBone->mOffsetMatrix.a1 << " " << b.AIBone->mOffsetMatrix.a2 << " " << b.AIBone->mOffsetMatrix.a3 << " " << b.AIBone->mOffsetMatrix.a4 << "\n";
+        //std::cout << b.AIBone->mOffsetMatrix.b1 << " " << b.AIBone->mOffsetMatrix.b2 << " " << b.AIBone->mOffsetMatrix.b3 << " " << b.AIBone->mOffsetMatrix.b4 << "\n";
+        //std::cout << b.AIBone->mOffsetMatrix.c1 << " " << b.AIBone->mOffsetMatrix.c2 << " " << b.AIBone->mOffsetMatrix.c3 << " " << b.AIBone->mOffsetMatrix.c4 << "\n";
+        //std::cout << b.AIBone->mOffsetMatrix.d1 << " " << b.AIBone->mOffsetMatrix.d2 << " " << b.AIBone->mOffsetMatrix.d3 << " " << b.AIBone->mOffsetMatrix.d4 << "\n";
+    }
+
+    std::cout << std::endl;
+
+    for (UINT j = 0; j < scene->mNumMeshes; j++)
+    {
+        aiMesh* mesh = scene->mMeshes[i];
+
+        /*reserve memory for vertices*/
+        rMeshes.push_back(new MeshRigged());
+        rMeshes[i]->vertices.reserve(mesh->mNumVertices);
+        estimatedFileSize += mesh->mNumVertices * sizeof(SkinnedVertex);
+
+        std::cout<<"Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << std::endl;
+
+        std::cout << "Input name of material for " << mesh->mName.C_Str() << ": ";
+        std::getline(std::cin, rMeshes[i]->materialName);
+
+        if (i > 0 && rMeshes[i]->materialName == "")
+        {
+            rMeshes[i]->materialName = rMeshes[(INT_PTR)i - 1]->materialName;
+        }
+
+        if (rMeshes[i]->materialName == "del")
+        {
+            rMeshes.pop_back();
+            continue;
+        }
+
+        /*get vertices: positions normals tex coords and tangentu */
+
+        for (UINT v = 0; v < mesh->mNumVertices; v++)
+        {
+
+            aiVector3D tex(0);
+            aiVector3D tangU(0);
+            aiVector3D pos = mesh->mVertices[v];
+            aiVector3D norm = mesh->mNormals[v];
+
+            if (mesh->HasTangentsAndBitangents() != 0)
+            {
+                tangU = mesh->mTangents[v];
+            }
+            
+            tex = mesh->mTextureCoords[0][v];
+            
+            /*convert to vertex data format*/
+            rMeshes[i]->vertices.push_back(SkinnedVertex(float3(pos.x, pos.y, pos.z),
+                                             float2(tex.x, tex.y),
+                                          float3(norm.x, norm.y, norm.z),
+                                          float3(tangU.x, tangU.y, tangU.z)
+            ));
+
+            XMFLOAT3 pV3 = { pos.x, pos.y, pos.z };
+
+            vMin = XMVectorMin(vMin, XMLoadFloat3(&pV3));
+            vMax = XMVectorMax(vMax, XMLoadFloat3(&pV3));
+
+        }
+
+        /*apply centering and scaling if needed*/
+
+        XMFLOAT3 center;
+        DirectX::XMStoreFloat3(&center, 0.5f * (vMin + vMax));
+
+        std::cout << "Center is " << center.x << ", " << center.y << ", " << center.z << std::endl;
+
+        if (iData.ScaleFactor != 1.0f)
+        {
+            std::cout << "Scaling with factor " << iData.ScaleFactor << std::endl;
+        }
+
+        for (auto& m : rMeshes)
+        {
+            for (auto& v : m->vertices)
+            {
+
+                if (iData.CenterEnabled)
+                {
+                    v.Position.x -= center.x;
+                    v.Position.y -= center.y;
+                    v.Position.z -= center.z;
+                }
+
+                if (iData.ScaleFactor != 1.0f)
+                {
+                    DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
+                    XMVECTOR a = XMLoadFloat3(&xm);
+                    a = XMVectorScale(a, iData.ScaleFactor);
+                    DirectX::XMStoreFloat3(&xm, a);
+
+                    v.Position.x = xm.x;
+                    v.Position.y = xm.y;
+                    v.Position.z = xm.z;
+                }
+
+                //if (rotateX != 0)
+                //{
+                //    DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
+                //    XMVECTOR a = XMLoadFloat3(&xm);
+                //    XMMATRIX m = XMMatrixRotationX(XM_PIDIV2 * rotateX);
+                //    a = XMVector3Transform(a, m);
+                //    DirectX::XMStoreFloat3(&xm, a);
+
+                //    v.Position.x = xm.x;
+                //    v.Position.y = xm.y;
+                //    v.Position.z = xm.z;
+                //}
+
+            }
+        }
+
+        /*get indices*/
+        rMeshes[i]->indices.reserve((long long)(mesh->mNumFaces) * 3);
+        estimatedFileSize += (long long)(mesh->mNumFaces) * 3 * sizeof(uint32_t);
+
+        std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces * 3 << " faces\n" << std::endl;
+
+
+        for (UINT j = 0; j < mesh->mNumFaces; j++)
+        {
+            rMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[0]);
+            rMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[1]);
+            rMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[2]);
+        }
+
+        i++;
+    }
+
+    /*add weights from bones to vertices*/
+    for (const auto& b : bones)
+    {
+
+        for (UINT k = 0; k < b.AIBone->mNumWeights; k++)
+        {
+            rMeshes[0]->vertices[b.AIBone->mWeights[k].mVertexId].BlendIndices.push_back(k);
+            rMeshes[0]->vertices[b.AIBone->mWeights[k].mVertexId].BlendWeights.push_back(b.AIBone->mWeights[k].mWeight);
+        }
+
+    }
+
+    for (const auto& v : rMeshes[0]->vertices)
+    {
+        if (v.BlendIndices.size() > 4)
+        {
+            std::cout << "Illegal amount of blend indices!" << std::endl;
+        }
+
+        float acc = 0.0f;
+
+        for (const auto& f : v.BlendWeights)
+        {
+            acc += f;
+        }
+
+        if (acc > 1.01f)
+        {
+            std::cout << "Blend Weight sum over 1! " << acc << std::endl;
+        }
+
+        if (acc < 0.95f)
+        {
+            std::cout << "Blend Weight sum under 0.95! " << acc << std::endl;
+        }
+
+    }
+
+    
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+
+    estimatedFileSize += 5;
+
+    for (int i = 0; i < rMeshes.size(); i++)
+    {
+        estimatedFileSize += 3 * 3 * 4 + 9;
+        estimatedFileSize += 6 + 3 * 10;
+    }
+
+    std::cout << "Finished loading " << baseFileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms" << std::endl;
+    std::cout << "Estimated size: " << (estimatedFileSize/1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
+
+
+    return true;
 }
 
+
+
+
+/************WRITE*******************/
 bool ModelConverter::writeB3D()
 {
 
@@ -594,45 +595,45 @@ bool ModelConverter::writeB3D()
     fileHandle.write(header, 4);
 
     /*number of meshes*/
-    char meshSize = (char)meshes.size();
+    char meshSize = (char)bMeshes.size();
     fileHandle.write(reinterpret_cast<const char*>(&meshSize), sizeof(char));
 
     for (char i = 0; i < meshSize; i++)
     {
         /*material name*/
-        short stringSize = (short)meshes[i]->materialName.size();
+        short stringSize = (short)bMeshes[i]->materialName.size();
         fileHandle.write(reinterpret_cast<const char*>(&stringSize), sizeof(stringSize));
-        fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->materialName[0]), stringSize);
+        fileHandle.write(reinterpret_cast<const char*>(&bMeshes[i]->materialName[0]), stringSize);
 
         /*num vertices*/
-        int verticesSize = (int)meshes[i]->vertices.size();
+        int verticesSize = (int)bMeshes[i]->vertices.size();
         fileHandle.write(reinterpret_cast<const char*>(&verticesSize), sizeof(int));
 
         /*vertices*/
         for (int v = 0; v < verticesSize; v++)
         {
             XMFLOAT3 Position;
-            Position.x = meshes[i]->vertices[v].Position.x;
-            Position.y = meshes[i]->vertices[v].Position.y;
-            Position.z = meshes[i]->vertices[v].Position.z;
+            Position.x = bMeshes[i]->vertices[v].Position.x;
+            Position.y = bMeshes[i]->vertices[v].Position.y;
+            Position.z = bMeshes[i]->vertices[v].Position.z;
 
             XMFLOAT3 Normal;
-            Normal.x = meshes[i]->vertices[v].Normal.x;
-            Normal.y = meshes[i]->vertices[v].Normal.y;
-            Normal.z = meshes[i]->vertices[v].Normal.z;
+            Normal.x = bMeshes[i]->vertices[v].Normal.x;
+            Normal.y = bMeshes[i]->vertices[v].Normal.y;
+            Normal.z = bMeshes[i]->vertices[v].Normal.z;
 
             XMFLOAT3 Tangent;
-            Tangent.x = meshes[i]->vertices[v].TangentU.x;
-            Tangent.y = meshes[i]->vertices[v].TangentU.y;
-            Tangent.z = meshes[i]->vertices[v].TangentU.z;
+            Tangent.x = bMeshes[i]->vertices[v].TangentU.x;
+            Tangent.y = bMeshes[i]->vertices[v].TangentU.y;
+            Tangent.z = bMeshes[i]->vertices[v].TangentU.z;
 
             /*position*/
             fileHandle.write(reinterpret_cast<const char*>(&Position.x), sizeof(float));
             fileHandle.write(reinterpret_cast<const char*>(&Position.y), sizeof(float));
             fileHandle.write(reinterpret_cast<const char*>(&Position.z), sizeof(float));
             /*texture coordinates*/
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Texture.u), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->vertices[v].Texture.v), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&bMeshes[i]->vertices[v].Texture.u), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&bMeshes[i]->vertices[v].Texture.v), sizeof(float));
             /*normals*/
             fileHandle.write(reinterpret_cast<const char*>(&Normal.x), sizeof(float));
             fileHandle.write(reinterpret_cast<const char*>(&Normal.y), sizeof(float));
@@ -646,13 +647,13 @@ bool ModelConverter::writeB3D()
 
 
         /*num indices*/
-        int indicesSize = (int)meshes[i]->indices.size();
+        int indicesSize = (int)bMeshes[i]->indices.size();
         fileHandle.write(reinterpret_cast<const char*>(&indicesSize), sizeof(int));
 
         /*indices*/
         for (int j = 0; j < indicesSize; j++)
         {
-            fileHandle.write(reinterpret_cast<const char*>(&meshes[i]->indices[j]), sizeof(uint32_t));
+            fileHandle.write(reinterpret_cast<const char*>(&bMeshes[i]->indices[j]), sizeof(uint32_t));
         }
 
     }
@@ -667,9 +668,157 @@ bool ModelConverter::writeB3D()
 
 bool ModelConverter::writeS3D()
 {
-    return false;
+    /*writing to binary file .s3d*/
+    startTime = std::chrono::high_resolution_clock::now();
+
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(NULL);
+
+    auto fileHandle = std::fstream(writeFileName.c_str(), std::ios::out | std::ios::binary);
+
+    if (!fileHandle.is_open())
+    {
+        return false;
+    }
+
+    /*header*/
+    char header[4] = { 0x73, 0x33, 0x64, 0x66 };
+    fileHandle.write(header, 4);
+
+    /*number of bones*/
+    char boneSize = (char)bones.size();
+    fileHandle.write(reinterpret_cast<const char*>(&boneSize), sizeof(char));
+
+    for (const auto& b : bones)
+    {
+        /*bone id*/
+        char boneID = (char)b.Index;
+        fileHandle.write(reinterpret_cast<const char*>(&boneID), sizeof(char));
+
+        /*bone offset matrix*/
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.a1), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.a2), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.a3), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.a4), sizeof(float));
+
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.b1), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.b2), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.b3), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.b4), sizeof(float));
+
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.c1), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.c2), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.c3), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.c4), sizeof(float));
+
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.d1), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.d2), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.d3), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.d4), sizeof(float));
+
+
+    }
+
+    /*bone hierarchy*/
+    for (const auto& b : bones)
+    {
+        fileHandle.write(reinterpret_cast<const char*>(&b.Index), sizeof(int));
+        fileHandle.write(reinterpret_cast<const char*>(&b.ParentIndex), sizeof(int));
+    }
+
+    /*number of meshes*/
+    char meshSize = (char)rMeshes.size();
+    fileHandle.write(reinterpret_cast<const char*>(&meshSize), sizeof(char));
+
+    for (char i = 0; i < meshSize; i++)
+    {
+        /*material name*/
+        short stringSize = (short)rMeshes[i]->materialName.size();
+        fileHandle.write(reinterpret_cast<const char*>(&stringSize), sizeof(stringSize));
+        fileHandle.write(reinterpret_cast<const char*>(&rMeshes[i]->materialName[0]), stringSize);
+
+        /*num vertices*/
+        int verticesSize = (int)rMeshes[i]->vertices.size();
+        fileHandle.write(reinterpret_cast<const char*>(&verticesSize), sizeof(int));
+
+        /*vertices*/
+        for (int v = 0; v < verticesSize; v++)
+        {
+            XMFLOAT3 Position;
+            Position.x = rMeshes[i]->vertices[v].Position.x;
+            Position.y = rMeshes[i]->vertices[v].Position.y;
+            Position.z = rMeshes[i]->vertices[v].Position.z;
+
+            XMFLOAT3 Normal;
+            Normal.x = rMeshes[i]->vertices[v].Normal.x;
+            Normal.y = rMeshes[i]->vertices[v].Normal.y;
+            Normal.z = rMeshes[i]->vertices[v].Normal.z;
+
+            XMFLOAT3 Tangent;
+            Tangent.x = rMeshes[i]->vertices[v].TangentU.x;
+            Tangent.y = rMeshes[i]->vertices[v].TangentU.y;
+            Tangent.z = rMeshes[i]->vertices[v].TangentU.z;
+
+            /*position*/
+            fileHandle.write(reinterpret_cast<const char*>(&Position.x), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Position.y), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Position.z), sizeof(float));
+            /*texture coordinates*/
+            fileHandle.write(reinterpret_cast<const char*>(&rMeshes[i]->vertices[v].Texture.u), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&rMeshes[i]->vertices[v].Texture.v), sizeof(float));
+            /*normals*/
+            fileHandle.write(reinterpret_cast<const char*>(&Normal.x), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Normal.y), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Normal.z), sizeof(float));
+            /*tangentU*/
+            fileHandle.write(reinterpret_cast<const char*>(&Tangent.x), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Tangent.y), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&Tangent.z), sizeof(float));
+
+            /*fill bone data*/
+            while (rMeshes[i]->vertices[v].BlendIndices.size() < 4)
+            {
+                rMeshes[i]->vertices[v].BlendIndices.push_back(0);
+            }
+
+            while (rMeshes[i]->vertices[v].BlendWeights.size() < 4)
+            {
+                rMeshes[i]->vertices[v].BlendWeights.push_back(0.0f);
+            }
+
+            /*bone indices*/
+            for (int k = 0; k < 4; k++)
+            {
+                fileHandle.write(reinterpret_cast<const char*>(&rMeshes[i]->vertices[v].BlendIndices[k]), sizeof(UINT));
+                fileHandle.write(reinterpret_cast<const char*>(&rMeshes[i]->vertices[v].BlendWeights[k]), sizeof(float));
+            }
+
+        }
+
+
+        /*num indices*/
+        int indicesSize = (int)rMeshes[i]->indices.size();
+        fileHandle.write(reinterpret_cast<const char*>(&indicesSize), sizeof(int));
+
+        /*indices*/
+        for (int j = 0; j < indicesSize; j++)
+        {
+            fileHandle.write(reinterpret_cast<const char*>(&rMeshes[i]->indices[j]), sizeof(uint32_t));
+        }
+
+    }
+
+    fileHandle.close();
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    std::cout << "\nFinished writing " << writeFileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms\n" << std::endl;
+
+    return true;
 }
 
+
+
+/************VERIFY*******************/
 bool ModelConverter::verifyB3D()
 {
     /*verification*/
@@ -716,7 +865,7 @@ bool ModelConverter::verifyB3D()
     char vNumMeshes = 0;
     vFile.read((char*)(&vNumMeshes), sizeof(char));
 
-    if (vNumMeshes == meshes.size())
+    if (vNumMeshes == bMeshes.size())
     {
         std::cout << "ok (" << (int)vNumMeshes << ")\n";
     }
@@ -727,7 +876,7 @@ bool ModelConverter::verifyB3D()
 
     for (char i = 0; i < vNumMeshes; i++)
     {
-        vmeshes.push_back(new Mesh());
+        bMeshesV.push_back(new Mesh());
 
         /*material*/
         std::cout << "material...\t";
@@ -739,7 +888,7 @@ bool ModelConverter::verifyB3D()
         vFile.read(mat, slen);
         mat[slen] = '\0';
 
-        if (meshes[i]->materialName.compare(mat) == 0)
+        if (bMeshes[i]->materialName.compare(mat) == 0)
         {
             std::cout << "ok (" << mat << ")\n";
         }
@@ -755,7 +904,7 @@ bool ModelConverter::verifyB3D()
         int vnVert = 0;
         vFile.read((char*)(&vnVert), sizeof(int));
 
-        if (vnVert == meshes[i]->vertices.size())
+        if (vnVert == bMeshes[i]->vertices.size())
         {
             std::cout << "ok (" << vnVert << ")\n";
         }
@@ -764,32 +913,32 @@ bool ModelConverter::verifyB3D()
             std::cout << "failed" << std::endl;
         }
 
-        vmeshes[i]->vertices.resize(vnVert);
+        bMeshesV[i]->vertices.resize(vnVert);
 
         /*vertices*/
         std::cout << "vertices...\t";
 
         for (int j = 0; j < vnVert; j++)
         {
-            vFile.read((char*)(&vmeshes[i]->vertices[j].Position.x), sizeof(float));
-            vFile.read((char*)(&vmeshes[i]->vertices[j].Position.y), sizeof(float));
-            vFile.read((char*)(&vmeshes[i]->vertices[j].Position.z), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].Position.x), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].Position.y), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].Position.z), sizeof(float));
 
-            vFile.read((char*)(&vmeshes[i]->vertices[j].Texture.u), sizeof(float));
-            vFile.read((char*)(&vmeshes[i]->vertices[j].Texture.v), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].Texture.u), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].Texture.v), sizeof(float));
 
-            vFile.read((char*)(&vmeshes[i]->vertices[j].Normal.x), sizeof(float));
-            vFile.read((char*)(&vmeshes[i]->vertices[j].Normal.y), sizeof(float));
-            vFile.read((char*)(&vmeshes[i]->vertices[j].Normal.z), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].Normal.x), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].Normal.y), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].Normal.z), sizeof(float));
 
-            vFile.read((char*)(&vmeshes[i]->vertices[j].TangentU.x), sizeof(float));
-            vFile.read((char*)(&vmeshes[i]->vertices[j].TangentU.y), sizeof(float));
-            vFile.read((char*)(&vmeshes[i]->vertices[j].TangentU.z), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].TangentU.x), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].TangentU.y), sizeof(float));
+            vFile.read((char*)(&bMeshesV[i]->vertices[j].TangentU.z), sizeof(float));
         }
 
 
-        if (vmeshes[i]->vertices[0].Position.z == vmeshes[i]->vertices[0].Position.z &&
-            vmeshes[i]->vertices[0].TangentU.x == vmeshes[i]->vertices[0].TangentU.x)
+        if (bMeshesV[i]->vertices[0].Position.z == bMeshesV[i]->vertices[0].Position.z &&
+            bMeshesV[i]->vertices[0].TangentU.x == bMeshesV[i]->vertices[0].TangentU.x)
         {
             std::cout << "ok" << std::endl;
         }
@@ -806,27 +955,27 @@ bool ModelConverter::verifyB3D()
         int vInd = 0;
         vFile.read((char*)(&vInd), sizeof(int));
 
-        if (vInd == meshes[i]->indices.size())
+        if (vInd == bMeshes[i]->indices.size())
         {
             std::cout << "ok (" << vInd << ")\n";
         }
         else
         {
-            std::cout << "failed - " << vInd << " vs " << meshes[i]->indices.size() << std::endl;
+            std::cout << "failed - " << vInd << " vs " << bMeshes[i]->indices.size() << std::endl;
         }
 
         /*indices*/
         std::cout << "indices...\t";
 
-        vmeshes[i]->indices.resize(vInd);
+        bMeshesV[i]->indices.resize(vInd);
 
         for (int j = 0; j < vInd; j++)
         {
-            vFile.read((char*)(&vmeshes[i]->indices[j]), sizeof(int));
+            vFile.read((char*)(&bMeshesV[i]->indices[j]), sizeof(int));
         }
 
 
-        if (vmeshes[i]->indices == meshes[i]->indices)
+        if (bMeshesV[i]->indices == bMeshes[i]->indices)
         {
             std::cout << "ok" << std::endl;
         }

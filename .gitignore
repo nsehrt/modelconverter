@@ -354,3 +354,4 @@ healthchecksdb
 *.blend1
 *.3ds
 *.dds
+/basic.s3d
