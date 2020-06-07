@@ -3,7 +3,7 @@
 #include "ModelConverter.h"
 
 const int VERSION_MAJOR = 0;
-const int VERSION_MINOR = 4;
+const int VERSION_MINOR = 6;
 
 std::vector<std::string> split(const std::string& s, char delim)
 {
@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
 
     if (!mConverter.load(initData))
     {
-        std::cerr << "Failed to initialize model converter!" << std::endl;
+        std::cerr << "Model conversion failed!" << std::endl;
         return -1;
     }
 

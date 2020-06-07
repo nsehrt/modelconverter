@@ -100,8 +100,8 @@ struct InitData
 
     friend std::ostream& operator<<(std::ostream& os, const InitData& id)
     {
-        os << "File:\t\t" << id.FileName << "\nScale:\t\t" << id.ScaleFactor << "\nCentering:\t" << (id.CenterEnabled ? "on" : "off") <<
-            "\nPrefix:\t\t" << id.Prefix << "\n";
+        os << "File:\t\t" << id.FileName << "\nScale:\t\t" << id.ScaleFactor << "\nCentering:\t" << (id.CenterEnabled ? "On" : "Off") <<
+            "\nPrefix:\t\t" << (id.Prefix.empty() ? "None" : id.Prefix) << "\n";
         return os;
     }
 };

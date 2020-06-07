@@ -213,7 +213,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
         /*get indices*/
         bMeshes[i]->indices.reserve((INT_PTR)(mesh->mNumFaces) * 3);
-        estimatedFileSize += (INT_PTR)(mesh->mNumFaces) * sizeof(uint32_t);
+        estimatedFileSize += (INT_PTR)(mesh->mNumFaces) * 3 * sizeof(uint32_t);
 
         std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces << " faces\n" << std::endl;
 
@@ -229,14 +229,6 @@ bool ModelConverter::loadStatic(const aiScene* scene)
     }
 
     auto endTime = std::chrono::high_resolution_clock::now();
-
-    estimatedFileSize += 5;
-
-    for (int i = 0; i < bMeshes.size(); i++)
-    {
-        estimatedFileSize += 3 * 3 * 4 + 9;
-        estimatedFileSize += 6 + 3 * 10;
-    }
 
     std::cout << "Finished loading " << iData.FileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms" << std::endl;
     std::cout << "Estimated size: " << (estimatedFileSize / 1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
@@ -376,6 +368,8 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     }
 
     std::cout << "Bone hierarchy test successful\n\n";
+
+    estimatedFileSize += (int)bones.size() * 75;
 
     for (const auto& b : bones)
     {
@@ -992,5 +986,172 @@ bool ModelConverter::verifyB3D()
 
 bool ModelConverter::verifyS3D()
 {
-    return false;
+    /*verification*/
+    std::cout << "Verifying s3d file is correct...\n";
+
+    /*load b3d file*/
+    std::streampos fileSize;
+    std::ifstream vFile(writeFileName, std::ios::binary);
+
+    /*file size*/
+    vFile.seekg(0, std::ios::end);
+    fileSize = vFile.tellg();
+    vFile.seekg(0, std::ios::beg);
+
+    /*check header*/
+    bool hr = true;
+    std::cout << "header...\t";
+
+    char buff[4] = { 's', '3', 'd', 'f' };
+
+    for (int i = 0; i < 4; i++)
+    {
+        char t;
+        vFile.read(&t, sizeof(char));
+
+        if (t != buff[i])
+        {
+            hr = false;
+            break;
+        }
+    }
+
+    if (hr == false)
+    {
+        std::cout << "not a s3d file\n";
+    }
+    else
+    {
+        std::cout << "ok\n";
+    }
+
+    /*num meshes*/
+    std::cout << "num meshes...\t";
+    char vNumMeshes = 0;
+    vFile.read((char*)(&vNumMeshes), sizeof(char));
+
+    if (vNumMeshes == rMeshes.size())
+    {
+        std::cout << "ok (" << (int)vNumMeshes << ")\n";
+    }
+    else
+    {
+        std::cout << "failed (" << vNumMeshes << " - " << rMeshes.size() << ")\n";
+        return false;
+    }
+
+    for (char i = 0; i < vNumMeshes; i++)
+    {
+        rMeshesV.push_back(new MeshRigged());
+
+        /*material*/
+        std::cout << "material...\t";
+
+        short slen = 0;
+        vFile.read((char*)(&slen), sizeof(short));
+
+        char* mat = new char[(INT_PTR)slen + 1];
+        vFile.read(mat, slen);
+        mat[slen] = '\0';
+
+        if (rMeshes[i]->materialName.compare(mat) == 0)
+        {
+            std::cout << "ok (" << mat << ")\n";
+        }
+        else
+        {
+            std::cout << "failed" << std::endl;
+        }
+
+
+        /*num vertices*/
+        std::cout << "num vertices...\t";
+
+        int vnVert = 0;
+        vFile.read((char*)(&vnVert), sizeof(int));
+
+        if (vnVert == rMeshes[i]->vertices.size())
+        {
+            std::cout << "ok (" << vnVert << ")\n";
+        }
+        else
+        {
+            std::cout << "failed" << std::endl;
+        }
+
+        rMeshesV[i]->vertices.resize(vnVert);
+
+        /*vertices*/
+        std::cout << "vertices...\t";
+
+        for (int j = 0; j < vnVert; j++)
+        {
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].Position.x), sizeof(float));
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].Position.y), sizeof(float));
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].Position.z), sizeof(float));
+
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].Texture.u), sizeof(float));
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].Texture.v), sizeof(float));
+
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].Normal.x), sizeof(float));
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].Normal.y), sizeof(float));
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].Normal.z), sizeof(float));
+
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].TangentU.x), sizeof(float));
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].TangentU.y), sizeof(float));
+            vFile.read((char*)(&rMeshesV[i]->vertices[j].TangentU.z), sizeof(float));
+        }
+
+
+        if (rMeshesV[i]->vertices[0].Position.z == rMeshesV[i]->vertices[0].Position.z &&
+            rMeshesV[i]->vertices[0].TangentU.x == rMeshesV[i]->vertices[0].TangentU.x)
+        {
+            std::cout << "ok" << std::endl;
+        }
+        else
+        {
+            std::cout << "failed" << std::endl;
+        }
+
+
+
+        /*num indices*/
+        std::cout << "num indices...\t";
+
+        int vInd = 0;
+        vFile.read((char*)(&vInd), sizeof(int));
+
+        if (vInd == rMeshes[i]->indices.size())
+        {
+            std::cout << "ok (" << vInd << ")\n";
+        }
+        else
+        {
+            std::cout << "failed - " << vInd << " vs " << rMeshes[i]->indices.size() << std::endl;
+        }
+
+        /*indices*/
+        std::cout << "indices...\t";
+
+        rMeshesV[i]->indices.resize(vInd);
+
+        for (int j = 0; j < vInd; j++)
+        {
+            vFile.read((char*)(&rMeshesV[i]->indices[j]), sizeof(int));
+        }
+
+
+        if (rMeshesV[i]->indices == rMeshes[i]->indices)
+        {
+            std::cout << "ok" << std::endl;
+        }
+        else
+        {
+            std::cout << "failed" << std::endl;
+        }
+
+
+    }
+
+    return true;
 }
