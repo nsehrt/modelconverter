@@ -25,19 +25,29 @@ int main(int argc, char* argv[])
     InitData initData;
 
     std::cout << "SkinnedModelConverter S3D " << VERSION_MAJOR << "." << VERSION_MINOR << " (Assimp Version " << mConverter.getVersionString() << ")\n" << std::endl;
-
+    std::cout << "===================================================\n\n";
     if (argc < 2)
     {
-        std::cout << "Not enough parameters!" << std::endl;
+        std::cerr << "Not enough parameters!" << std::endl;
         return -1;
     }
+
+    /*help dialog*/
+    if (std::string(argv[1]) == "-h" || std::string(argv[1]) == "-help")
+    {
+        std::cout << "First parameter must be path to file or -h!\n";
+        std::cout << "\nPossible parameters:\n";
+        std::cout << "-h\t- Help dialog\n-c\t- Center the model\n-s\t- Scale the model by this factor\n-p\t- Prefix the output file with the entered string\n" << std::endl;
+        return 0;
+    }
+
 
     /*command line parameter*/
 
     initData.FileName = argv[1];
 
 #ifdef _DEBUG
-    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\basic.fbx";
+    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\plant8_0.fbx";
 #endif
 
 
@@ -45,30 +55,46 @@ int main(int argc, char* argv[])
     {
         std::vector<std::string> sVec = split(argv[i], '=');
 
-        if (sVec.size() != 2)
+        if (sVec.size() == 1)
         {
-            std::cout << "Unknown parameter " << argv[i] << std::endl;
+            if (sVec[0] == "-c")
+            {
+                initData.CenterEnabled = 1;
+            }
+            else
+            {
+                std::cerr << "Unknown parameter " << argv[i] << std::endl;
+                continue;
+            }
+        }
+        else if (sVec.size() == 2)
+        {
+            if (sVec[0] == "-s")
+            {
+                initData.ScaleFactor = (float)atof(sVec[1].c_str());
+            }
+            else if (sVec[0] == "-p")
+            {
+                initData.Prefix = sVec[1];
+            }
+            else
+            {
+                std::cerr << "Unknown parameter " << argv[i] << std::endl;
+                continue;
+            }
+        }
+        else
+        {
+            std::cerr << "Unknown parameter " << argv[i] << std::endl;
             continue;
         }
 
-        if (sVec[0] == "-s")
-        {
-            initData.ScaleFactor = (float)atof(sVec[1].c_str());
-        }
-        else if (sVec[0] == "-p")
-        {
-            initData.Prefix = sVec[1];
-        }
-        else if (sVec[0] == "-c")
-        {
-            initData.CenterEnabled = (atoi(sVec[1].c_str()) != 0 ? 1 : 0);
-        }
 
     }
 
     if (!mConverter.load(initData))
     {
-        std::cout << "Failed to initialize model converter!" << std::endl;
+        std::cerr << "Failed to initialize model converter!" << std::endl;
         return -1;
     }
 

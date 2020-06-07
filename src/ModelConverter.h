@@ -52,6 +52,16 @@ struct Vertex
     float2 Texture;
     float3 Normal;
     float3 TangentU;
+};
+
+struct SkinnedVertex
+{
+    SkinnedVertex() : Position(0, 0, 0), Texture(0, 0), Normal(0, 0, 0), TangentU(0, 0, 0) {}
+    SkinnedVertex(float3 p, float2 t, float3 n, float3 tU) : Position(p), Texture(t), Normal(n), TangentU(tU) {}
+    float3 Position;
+    float2 Texture;
+    float3 Normal;
+    float3 TangentU;
     std::vector<float> BlendWeights;
     std::vector<UINT> BlendIndices;
 };
@@ -82,8 +92,8 @@ struct InitData
 
     friend std::ostream& operator<<(std::ostream& os, const InitData& id)
     {
-        os << "Filename: " << id.FileName << "\nScalefactor: " << id.ScaleFactor << "\nCentering: " << id.CenterEnabled <<
-            "\nPrefix: " << id.Prefix << "\n";
+        os << "File:\t\t" << id.FileName << "\nScale:\t\t" << id.ScaleFactor << "\nCentering:\t" << (id.CenterEnabled ? "on" : "off") <<
+            "\nPrefix:\t\t" << id.Prefix << "\n";
         return os;
     }
 };
@@ -95,8 +105,16 @@ public:
     ~ModelConverter() = default;
 
     bool load(InitData& initData);
+    bool loadStatic(const aiScene* scene);
+    bool processRigged(const aiScene* scene);
 
-    std::string getVersionString()
+    bool writeB3D();
+    bool writeS3D();
+
+    bool verifyB3D();
+    bool verifyS3D();
+
+    std::string getVersionString() const
     {
         std::stringstream res;
         res << aiGetVersionMajor() << "." << aiGetVersionMinor();
@@ -107,7 +125,10 @@ private:
     Assimp::Importer importer;
     std::vector<Mesh*> meshes, vmeshes;
     std::vector<Bone> bones;
+    UINT estimatedFileSize = 0;
 
-    std::string baseFileName;
-
+    std::string baseFileName = "";
+    std::string writeFileName = "";
+    InitData iData;
+    std::chrono::steady_clock::time_point startTime;
 };
