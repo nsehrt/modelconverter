@@ -131,7 +131,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
         bMeshes.push_back(new Mesh());
         bMeshes[i]->vertices.reserve(mesh->mNumVertices);
-        estimatedFileSize += mesh->mNumVertices * sizeof(Vertex);
+        estimatedFileSize += mesh->mNumVertices * 44;
 
         std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << std::endl;
 
@@ -230,7 +230,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
     auto endTime = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Finished loading " << iData.FileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms" << std::endl;
+    std::cout << "Finished loading file.\n";
     std::cout << "Estimated size: " << (estimatedFileSize / 1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
 
     return true;
@@ -389,7 +389,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
         /*reserve memory for vertices*/
         rMeshes.push_back(new MeshRigged());
         rMeshes[i]->vertices.reserve(mesh->mNumVertices);
-        estimatedFileSize += mesh->mNumVertices * sizeof(SkinnedVertex);
+        estimatedFileSize += mesh->mNumVertices * 76;
 
         std::cout<<"Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << std::endl;
 
@@ -557,7 +557,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
         estimatedFileSize += 6 + 3 * 10;
     }
 
-    std::cout << "Finished loading " << baseFileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms" << std::endl;
+    std::cout << "Finished loading file.\n";
     std::cout << "Estimated size: " << (estimatedFileSize/1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
 
 
