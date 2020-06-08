@@ -355,3 +355,4 @@ healthchecksdb
 *.3ds
 *.dds
 /basic.s3d
+/geo.s3d
