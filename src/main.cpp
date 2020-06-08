@@ -24,6 +24,7 @@ int main(int argc, char* argv[])
     ModelConverter mConverter;
     InitData initData;
 
+    std::cout << std::setprecision(2);
     std::cout << "ModelConverter B3D/S3D " << VERSION_MAJOR << "." << VERSION_MINOR << " (Assimp Version " << mConverter.getVersionString() << ")\n" << std::endl;
     std::cout << "===================================================\n\n";
 
@@ -42,7 +43,7 @@ int main(int argc, char* argv[])
     initData.FileName = argv[1];
 
 #ifdef _DEBUG
-    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\test.fbx";
+    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\basic.fbx";
 #endif
 
 

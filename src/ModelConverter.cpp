@@ -297,7 +297,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
         bMeshes[i]->indices.reserve((INT_PTR)(mesh->mNumFaces) * 3);
         estimatedFileSize += (INT_PTR)(mesh->mNumFaces) * 3 * sizeof(uint32_t);
 
-        std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces << " faces\n" << std::endl;
+        std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces << " faces.\n" << std::endl;
 
 
         for (UINT j = 0; j < mesh->mNumFaces; j++)
@@ -537,16 +537,72 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
         }
 
+        /*load transformation from node*/
+        aiNode* trfNode = scene->mRootNode->FindNode(mesh->mName.C_Str());
+
+        if (trfNode)
+        {
+            aiMatrix4x4 matrix = trfNode->mTransformation;
+
+
+            rMeshes[i]->nodeTransform._11 = matrix.a1;
+            rMeshes[i]->nodeTransform._12 = matrix.a2;
+            rMeshes[i]->nodeTransform._13 = matrix.a3;
+            rMeshes[i]->nodeTransform._14 = matrix.a4;
+            rMeshes[i]->nodeTransform._21 = matrix.b1;
+            rMeshes[i]->nodeTransform._22 = matrix.b2;
+            rMeshes[i]->nodeTransform._23 = matrix.b3;
+            rMeshes[i]->nodeTransform._24 = matrix.b4;
+            rMeshes[i]->nodeTransform._31 = matrix.c1;
+            rMeshes[i]->nodeTransform._32 = matrix.c2;
+            rMeshes[i]->nodeTransform._33 = matrix.c3;
+            rMeshes[i]->nodeTransform._34 = matrix.c4;
+            rMeshes[i]->nodeTransform._41 = matrix.d1;
+            rMeshes[i]->nodeTransform._42 = matrix.d2;
+            rMeshes[i]->nodeTransform._43 = matrix.d3;
+            rMeshes[i]->nodeTransform._44 = matrix.d4;
+
+        }
+        else
+        {
+            std::cout << "Couldn't find the associated node!\n";
+
+            XMStoreFloat4x4(&rMeshes[i]->nodeTransform, XMMatrixIdentity());
+        }
+
         /*apply centering and scaling if needed*/
 
         XMFLOAT3 center;
         DirectX::XMStoreFloat3(&center, 0.5f * (vMin + vMax));
 
-        std::cout << "Center is " << center.x << ", " << center.y << ", " << center.z << std::endl;
+        std::cout << "Center at " << center.x << " | " << center.y << " | " << center.z << "." << std::endl;
 
         if (iData.ScaleFactor != 1.0f)
         {
             std::cout << "Scaling with factor " << iData.ScaleFactor << std::endl;
+        }
+
+        if (iData.TransformApply != 0)
+        {
+            XMVECTOR vRot, vPos, vScale;
+            XMMatrixDecompose(&vScale, &vRot, &vPos, XMLoadFloat4x4(&rMeshes[i]->nodeTransform));
+
+            XMFLOAT3 tScale;
+            XMStoreFloat3(&tScale, vScale);
+
+            if (tScale.x != tScale.y && tScale.x != tScale.z)
+            {
+                std::cout << "Warning: Non-uniform scaling detected!\n";
+            }
+
+            if (tScale.x > 5.0f) tScale.x = 1.0f;
+            if (tScale.y > 5.0f) tScale.y = 1.0f;
+            if (tScale.z > 5.0f) tScale.z = 1.0f;
+
+            vScale = XMLoadFloat3(&tScale);
+
+            XMStoreFloat4x4(&rMeshes[i]->nodeTransform, XMMatrixScalingFromVector(vScale) * XMMatrixRotationQuaternion(vRot) * XMMatrixTranslationFromVector(vPos));
+
         }
 
         for (auto& m : rMeshes)
@@ -573,18 +629,23 @@ bool ModelConverter::loadRigged(const aiScene* scene)
                     v.Position.z = xm.z;
                 }
 
-                //if (rotateX != 0)
-                //{
-                //    DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
-                //    XMVECTOR a = XMLoadFloat3(&xm);
-                //    XMMATRIX m = XMMatrixRotationX(XM_PIDIV2 * rotateX);
-                //    a = XMVector3Transform(a, m);
-                //    DirectX::XMStoreFloat3(&xm, a);
+                if (iData.TransformApply != 0)
+                {
+                    XMFLOAT3 vec = { v.Position.x, v.Position.y, v.Position.z };
+                    XMFLOAT3 nVec = { v.Normal.x, v.Normal.y, v.Normal.z };
+                    XMFLOAT3 tVec = { v.TangentU.x, v.TangentU.y, v.TangentU.z };
 
-                //    v.Position.x = xm.x;
-                //    v.Position.y = xm.y;
-                //    v.Position.z = xm.z;
-                //}
+                    XMMATRIX trf = XMLoadFloat4x4(&rMeshes[i]->nodeTransform);
+
+                    transformXM(vec, trf);
+                    transformXM(nVec, trf);
+                    transformXM(tVec, trf);
+
+                    v.Position = { vec.x, vec.y, vec.z };
+                    v.Normal = { nVec.x, nVec.y, nVec.z };
+                    v.TangentU = { tVec.x, tVec.y, tVec.z };
+
+                }
 
             }
         }
@@ -593,7 +654,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
         rMeshes[i]->indices.reserve((long long)(mesh->mNumFaces) * 3);
         estimatedFileSize += (long long)(mesh->mNumFaces) * 3 * sizeof(uint32_t);
 
-        std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces * 3 << " faces\n" << std::endl;
+        std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces * 3 << " faces.\n" << std::endl;
 
 
         for (UINT j = 0; j < mesh->mNumFaces; j++)
@@ -658,7 +719,6 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
     std::cout << "Finished loading file.\n";
     std::cout << "Estimated size: " << (estimatedFileSize/1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
-
     std::cout << "\n===================================================\n\n";
 
     return true;

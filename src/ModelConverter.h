@@ -5,6 +5,7 @@
 #include <chrono>
 #include <fstream>
 #include <sstream>
+#include <iomanip> 
 #include <Windows.h>
 #include <assimp\Importer.hpp>
 #include <assimp\scene.h>
