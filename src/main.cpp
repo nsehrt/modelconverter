@@ -3,7 +3,7 @@
 #include "ModelConverter.h"
 
 const int VERSION_MAJOR = 0;
-const int VERSION_MINOR = 6;
+const int VERSION_MINOR = 7;
 
 std::vector<std::string> split(const std::string& s, char delim)
 {
@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
     initData.FileName = argv[1];
 
 #ifdef _DEBUG
-    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\basic.fbx";
+    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\geo.fbx";
 #endif
 
 

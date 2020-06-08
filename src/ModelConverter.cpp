@@ -538,9 +538,9 @@ bool ModelConverter::loadRigged(const aiScene* scene)
             std::cout << "Blend Weight sum over 1! " << acc << std::endl;
         }
 
-        if (acc < 0.95f)
+        if (acc < 0.925f)
         {
-            std::cout << "Blend Weight sum under 0.95! " << acc << std::endl;
+            std::cout << "Blend Weight sum under 0.925! " << acc << std::endl;
         }
 
     }
@@ -1025,6 +1025,88 @@ bool ModelConverter::verifyS3D()
         std::cout << "ok\n";
     }
 
+    /*num bones*/
+    std::cout << "num bones...\t";
+
+    char vNumBones = 0;
+    vFile.read((char*)(&vNumBones), sizeof(char));
+
+    if (vNumBones == bones.size())
+    {
+        std::cout << "ok (" << (int)vNumBones << ")\n";
+    }
+    else
+    {
+        std::cout << "failed (" << vNumBones << " - " << bones.size() << ")\n";
+        return false;
+    }
+
+    std::cout << "bone offset...\t";
+
+    std::vector<int> vBoneID(vNumBones);
+    char* voidPtr = new char[64];
+
+    for (char i = 0; i < vNumBones; i++)
+    {
+        vFile.read((char*)(&vBoneID[i]), sizeof(char));
+        vFile.read(voidPtr, sizeof(float) * 16);
+    }
+
+    bool boneIDCheck = true;
+    for (int i = 0; i < vBoneID.size(); i++)
+    {
+        if (vBoneID[i] != bones[i].Index)
+        {
+            boneIDCheck = false;
+        }
+    }
+
+    if (boneIDCheck)
+    {
+        std::cout << "ok\n";
+    }
+    else
+    {
+        std::cout << "failed!";
+    }
+
+    /*bone hierarchy*/
+
+    std::cout << "bone order...\t";
+
+    std::vector<Bone> boneHierarchyCheck(vNumBones);
+
+    for (char i = 0; i < vNumBones; i++)
+    {
+        vFile.read((char*)(&boneHierarchyCheck[i].Index), sizeof(int));
+        vFile.read((char*)(&boneHierarchyCheck[i].ParentIndex), sizeof(int));
+    }
+
+    UINT timesFailed = 0;
+    for (char i = 0; i < vNumBones; i++)
+    {
+        if (boneHierarchyCheck[i].Index != bones[i].Index)
+        {
+            timesFailed++;
+        }
+
+        if (boneHierarchyCheck[i].ParentIndex != bones[i].ParentIndex)
+        {
+            timesFailed++;
+        }
+
+    }
+
+    if (timesFailed == 0)
+    {
+        std::cout << "ok\n";
+    }
+    else
+    {
+        std::cout << "failed! (" << timesFailed << " errors)\n";
+    }
+
+
     /*num meshes*/
     std::cout << "num meshes...\t";
     char vNumMeshes = 0;
@@ -1100,6 +1182,15 @@ bool ModelConverter::verifyS3D()
             vFile.read((char*)(&rMeshesV[i]->vertices[j].TangentU.x), sizeof(float));
             vFile.read((char*)(&rMeshesV[i]->vertices[j].TangentU.y), sizeof(float));
             vFile.read((char*)(&rMeshesV[i]->vertices[j].TangentU.z), sizeof(float));
+
+            rMeshesV[i]->vertices[j].BlendIndices.resize(4);
+            rMeshesV[i]->vertices[j].BlendWeights.resize(4);
+
+            for (int k = 0; k < 4; k++)
+            {
+                vFile.read((char*)(&rMeshesV[i]->vertices[j].BlendIndices[k]), sizeof(UINT));
+                vFile.read((char*)(&rMeshesV[i]->vertices[j].BlendWeights[k]), sizeof(float));
+            }
         }
 
 
