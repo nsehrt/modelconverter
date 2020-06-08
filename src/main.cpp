@@ -24,7 +24,7 @@ int main(int argc, char* argv[])
     ModelConverter mConverter;
     InitData initData;
 
-    std::cout << "SkinnedModelConverter S3D " << VERSION_MAJOR << "." << VERSION_MINOR << " (Assimp Version " << mConverter.getVersionString() << ")\n" << std::endl;
+    std::cout << "ModelConverter B3D/S3D " << VERSION_MAJOR << "." << VERSION_MINOR << " (Assimp Version " << mConverter.getVersionString() << ")\n" << std::endl;
     std::cout << "===================================================\n\n";
 
     /*help dialog*/

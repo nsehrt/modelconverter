@@ -113,7 +113,14 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
     bMeshes.reserve(scene->mNumMeshes);
 
-    std::cout << "Model contains " << scene->mNumMeshes << " mesh(es)!\n" << std::endl;
+    std::cout << "Model contains " << scene->mNumMeshes << " mesh(es)!" << std::endl;
+
+    std::cout << "\n===================================================\n";
+
+    std::cout << "\nNode/bone hierarchy:\n";
+    printNodes(scene->mRootNode);
+
+    std::cout << "\n===================================================\n\n";
 
     int i = 0;
 
@@ -201,7 +208,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
                     DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
                     XMVECTOR a = XMLoadFloat3(&xm);
                     a = XMVectorScale(a, iData.ScaleFactor);
-                    XMStoreFloat3(&xm, a);
+                    DirectX::XMStoreFloat3(&xm, a);
 
                     v.Position.x = xm.x;
                     v.Position.y = xm.y;
@@ -232,6 +239,8 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
     std::cout << "Finished loading file.\n";
     std::cout << "Estimated size: " << (estimatedFileSize / 1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
+    std::cout << "\n===================================================\n\n";
+   
 
     return true;
 }
@@ -264,7 +273,6 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     for (UINT i = 0; i < scene->mNumMeshes; i++)
     {
         aiMesh* fMesh = scene->mMeshes[i];
-        std::cout << "Processing mesh " << fMesh->mName.C_Str() << " (" << fMesh->mNumBones << " Bones)." << std::endl;
 
         for (UINT j = 0; j < fMesh->mNumBones; j++)
         {
@@ -293,13 +301,19 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
     for (UINT i = 0; i < scene->mNumMeshes; i++)
     {
-        std::cout << "Mesh " << i << " has a total of " << totalWeight[i] << " Weights (" << totalWeightSum[i] << ")" << std::endl;
+        std::cout << "Mesh " << i << " (" << scene->mMeshes[i]->mName.C_Str() << ") has a total of " << totalWeight[i] << " Weights (" << totalWeightSum[i] << ")" << std::endl;
     }
 
-    std::cout << "Found a total of " << bones.size() << " bones." << std::endl;
+    std::cout << "\nFound a total of " << bones.size() << " bones." << std::endl;
 
     aiNode* rootNode = scene->mRootNode;
-    
+
+    std::cout << "\n===================================================\n";
+
+    std::cout << "\nNode/bone hierarchy:\n";
+    printNodes(rootNode);
+    std::cout << std::endl;
+
     for (auto& b : bones)
     {
         aiNode* fNode = rootNode->FindNode(b.Name.c_str());
@@ -367,18 +381,28 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
     }
 
-    std::cout << "Bone hierarchy test successful\n\n";
+    std::cout << "Bone hierarchy test successful.\n";
+
+    std::cout << "\n===================================================\n";
 
     estimatedFileSize += (int)bones.size() * 75;
 
-    for (const auto& b : bones)
-    {
-        std::cout << "Bone " << b.Index << " (" << b.Name << ") is a child of " << b.ParentIndex << " (" << (b.ParentIndex > -1 ? bones[b.ParentIndex].Name : "-1") << ")" << std::endl;
-        //std::cout << b.AIBone->mOffsetMatrix.a1 << " " << b.AIBone->mOffsetMatrix.a2 << " " << b.AIBone->mOffsetMatrix.a3 << " " << b.AIBone->mOffsetMatrix.a4 << "\n";
-        //std::cout << b.AIBone->mOffsetMatrix.b1 << " " << b.AIBone->mOffsetMatrix.b2 << " " << b.AIBone->mOffsetMatrix.b3 << " " << b.AIBone->mOffsetMatrix.b4 << "\n";
-        //std::cout << b.AIBone->mOffsetMatrix.c1 << " " << b.AIBone->mOffsetMatrix.c2 << " " << b.AIBone->mOffsetMatrix.c3 << " " << b.AIBone->mOffsetMatrix.c4 << "\n";
-        //std::cout << b.AIBone->mOffsetMatrix.d1 << " " << b.AIBone->mOffsetMatrix.d2 << " " << b.AIBone->mOffsetMatrix.d3 << " " << b.AIBone->mOffsetMatrix.d4 << "\n";
-    }
+    //for (const auto& b : bones)
+    //{
+    //    std::cout << "Bone " << b.Index << " (" << b.Name << ") is a child of " << b.ParentIndex << " (" << (b.ParentIndex > -1 ? bones[b.ParentIndex].Name : "-1") << ")" << std::endl;
+
+    //    aiVector3D pos;
+    //    aiQuaternion rot;
+    //    b.AIBone->mOffsetMatrix.DecomposeNoScaling(rot, pos);
+
+    //    //std::cout << "Pos: " << pos.x << " " << pos.y << " " << pos.z << "\n";
+    //    //std::cout << "Rot: " << rot.x << " " << rot.y << " " << rot.z << " " << rot.w << "\n";
+
+    //    //std::cout << b.AIBone->mOffsetMatrix.a1 << " " << b.AIBone->mOffsetMatrix.a2 << " " << b.AIBone->mOffsetMatrix.a3 << " " << b.AIBone->mOffsetMatrix.a4 << "\n";
+    //    //std::cout << b.AIBone->mOffsetMatrix.b1 << " " << b.AIBone->mOffsetMatrix.b2 << " " << b.AIBone->mOffsetMatrix.b3 << " " << b.AIBone->mOffsetMatrix.b4 << "\n";
+    //    //std::cout << b.AIBone->mOffsetMatrix.c1 << " " << b.AIBone->mOffsetMatrix.c2 << " " << b.AIBone->mOffsetMatrix.c3 << " " << b.AIBone->mOffsetMatrix.c4 << "\n";
+    //    //std::cout << b.AIBone->mOffsetMatrix.d1 << " " << b.AIBone->mOffsetMatrix.d2 << " " << b.AIBone->mOffsetMatrix.d3 << " " << b.AIBone->mOffsetMatrix.d4 << "\n";
+    //}
 
     std::cout << std::endl;
 
@@ -560,6 +584,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     std::cout << "Finished loading file.\n";
     std::cout << "Estimated size: " << (estimatedFileSize/1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
 
+    std::cout << "\n===================================================\n\n";
 
     return true;
 }
@@ -655,7 +680,8 @@ bool ModelConverter::writeB3D()
     fileHandle.close();
 
     auto endTime = std::chrono::high_resolution_clock::now();
-    std::cout << "\nFinished writing " << writeFileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms\n" << std::endl;
+    std::cout << "Finished writing " << writeFileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms." << std::endl;
+    std::cout << "\n===================================================\n\n";
 
     return true;
 }
@@ -809,7 +835,8 @@ bool ModelConverter::writeS3D()
     fileHandle.close();
 
     auto endTime = std::chrono::high_resolution_clock::now();
-    std::cout << "\nFinished writing " << writeFileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms\n" << std::endl;
+    std::cout << "Finished writing " << writeFileName << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms." << std::endl;
+    std::cout << "\n===================================================\n\n";
 
     return true;
 }

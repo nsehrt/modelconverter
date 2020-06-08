@@ -190,4 +190,20 @@ private:
 
         return exists;
     }
+
+    void printNodes(aiNode* node, int depth = 0)
+    {
+        std::cout << std::string((long long)depth * 3, ' ') << char(0xC0) << std::string(2, '-') << ">" << node->mName.C_Str();
+        if (node->mTransformation.IsIdentity())
+        {
+            std::cout << " (Identity Transform)";
+        }
+        std::cout << "\n";
+
+        for (UINT i = 0; i < node->mNumChildren; i++)
+        {
+            printNodes(node->mChildren[i], depth + 1);
+        }
+    }
+
 };
