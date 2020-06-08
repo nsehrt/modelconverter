@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
     {
         std::cout << "First parameter must be path to file or -h!\n";
         std::cout << "\nPossible parameters:\n";
-        std::cout << "-h\t- Help dialog\n-c\t- Center the model\n-s\t- Scale the model by this factor\n-p\t- Prefix the output file with the entered string\n" << std::endl;
+        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model\n-s\t- Scale the model by this factor\n-p\t- Prefix the output file with the entered string\n-nt\t- Do not apply node transform" << std::endl;
         return 0;
     }
 
@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
     initData.FileName = argv[1];
 
 #ifdef _DEBUG
-    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\basic.fbx";
+    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\test.fbx";
 #endif
 
 
@@ -52,9 +52,13 @@ int main(int argc, char* argv[])
 
         if (sVec.size() == 1)
         {
-            if (sVec[0] == "-c")
+            if (sVec[0] == "-nc")
             {
-                initData.CenterEnabled = 1;
+                initData.CenterEnabled = 0;
+            }
+            else if (sVec[0] == "-nt")
+            {
+                initData.TransformApply = 0;
             }
             else
             {

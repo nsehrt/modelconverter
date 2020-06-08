@@ -71,6 +71,7 @@ struct Mesh
 public:
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
+    DirectX::XMFLOAT4X4 nodeTransform;
     std::string materialName;
 };
 
@@ -79,6 +80,7 @@ struct MeshRigged
 public:
     std::vector<SkinnedVertex> vertices;
     std::vector<uint32_t> indices;
+    DirectX::XMFLOAT4X4 nodeTransform;
     std::string materialName;
 };
 
@@ -97,6 +99,7 @@ struct InitData
     float ScaleFactor = 1.0f;
     int CenterEnabled = 1;
     std::string Prefix = "";
+    int TransformApply = 1;
 
     friend std::ostream& operator<<(std::ostream& os, const InitData& id)
     {
@@ -198,12 +201,18 @@ private:
         {
             std::cout << " (Identity Transform)";
         }
-        std::cout << "\n";
+        std::cout <<"\n";
 
         for (UINT i = 0; i < node->mNumChildren; i++)
         {
             printNodes(node->mChildren[i], depth + 1);
         }
+    }
+
+    void transformXM(DirectX::XMFLOAT3& xmf, DirectX::XMMATRIX trfMatrix)
+    {
+        DirectX::XMVECTOR vec = XMVector3Transform(XMLoadFloat3(&xmf), trfMatrix);
+        DirectX::XMStoreFloat3(&xmf, vec);
     }
 
 };
