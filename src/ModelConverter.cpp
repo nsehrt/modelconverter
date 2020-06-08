@@ -689,6 +689,10 @@ bool ModelConverter::writeS3D()
         char boneID = (char)b.Index;
         fileHandle.write(reinterpret_cast<const char*>(&boneID), sizeof(char));
 
+        short boneStrSize = (short)b.Name.size();
+        fileHandle.write(reinterpret_cast<const char*>(&boneStrSize), sizeof(boneStrSize));
+        fileHandle.write(reinterpret_cast<const char*>(&b.Name[0]), boneStrSize);
+
         /*bone offset matrix*/
         fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.a1), sizeof(float));
         fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.a2), sizeof(float));
@@ -1041,33 +1045,55 @@ bool ModelConverter::verifyS3D()
         return false;
     }
 
-    std::cout << "bone offset...\t";
+    std::cout << "bone data...\t";
 
     std::vector<int> vBoneID(vNumBones);
+    std::vector<std::string> vBoneName(vNumBones);
     char* voidPtr = new char[64];
 
     for (char i = 0; i < vNumBones; i++)
     {
+        /*id*/
         vFile.read((char*)(&vBoneID[i]), sizeof(char));
+
+        /*name length*/
+        short slen = 0;
+        vFile.read((char*)(&slen), sizeof(short));
+
+        /*name*/
+        char* bname = new char[(INT_PTR)slen + 1];
+        vFile.read(bname, slen);
+        bname[slen] = '\0';
+
+        vBoneName[i] = std::string(bname);
+        delete[] bname;
+    
+        /*matrix*/
         vFile.read(voidPtr, sizeof(float) * 16);
     }
 
-    bool boneIDCheck = true;
+    UINT boneIDCheck = 0;
     for (int i = 0; i < vBoneID.size(); i++)
     {
         if (vBoneID[i] != bones[i].Index)
         {
-            boneIDCheck = false;
+            boneIDCheck++;
+        }
+
+        if (vBoneName[i] != bones[i].Name)
+        {
+            boneIDCheck++;
         }
     }
 
-    if (boneIDCheck)
+    if (boneIDCheck == 0)
     {
         std::cout << "ok\n";
     }
     else
     {
-        std::cout << "failed!";
+        std::cout << "failed! (" << boneIDCheck << " errors\n";
+        return false;
     }
 
     /*bone hierarchy*/
