@@ -73,6 +73,7 @@ public:
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     DirectX::XMFLOAT4X4 nodeTransform;
+    DirectX::XMFLOAT4X4 nodeRotation;
     std::string materialName;
 };
 
@@ -82,6 +83,7 @@ public:
     std::vector<SkinnedVertex> vertices;
     std::vector<uint32_t> indices;
     DirectX::XMFLOAT4X4 nodeTransform;
+    DirectX::XMFLOAT4X4 nodeRotation;
     std::string materialName;
 };
 
@@ -105,7 +107,7 @@ struct InitData
     friend std::ostream& operator<<(std::ostream& os, const InitData& id)
     {
         os << "File:\t\t" << id.FileName << "\nScale:\t\t" << id.ScaleFactor << "\nCentering:\t" << (id.CenterEnabled ? "On" : "Off") <<
-            "\nPrefix:\t\t" << (id.Prefix.empty() ? "None" : id.Prefix) << "\n";
+           "\nTransform:\t" << (id.TransformApply ? "On" : "Off") << "\nPrefix:\t\t" << (id.Prefix.empty() ? "None" : id.Prefix) << "\n";
         return os;
     }
 };

@@ -122,8 +122,6 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
     std::cout << "\n===================================================\n\n";
 
-    int i = 0;
-
     XMFLOAT3 cMin(+FLT_MAX, +FLT_MAX, +FLT_MAX);
     XMFLOAT3 cMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
@@ -132,25 +130,26 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
     for (UINT j = 0; j < scene->mNumMeshes; j++)
     {
-        aiMesh* mesh = scene->mMeshes[i];
+        aiMesh* mesh = scene->mMeshes[j];
 
         /*reserve memory for vertices*/
 
         bMeshes.push_back(new Mesh());
-        bMeshes[i]->vertices.reserve(mesh->mNumVertices);
+        bMeshes[j]->vertices.reserve(mesh->mNumVertices);
         estimatedFileSize += mesh->mNumVertices * 44;
 
-        std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices." << std::endl;
+        std::cout << "Mesh " << j << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices." << std::endl;
+        std::cout << "Mesh " << j << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces << " faces.\n" << std::endl;
 
         std::cout << "Input name of material for " << mesh->mName.C_Str() << ": ";
-        getline(std::cin, bMeshes[i]->materialName);
+        getline(std::cin, bMeshes[j]->materialName);
 
-        if (i > 0 && bMeshes[i]->materialName == "")
+        if (j > 0 && bMeshes[j]->materialName == "")
         {
-            bMeshes[i]->materialName = bMeshes[(INT_PTR)i - 1]->materialName;
+            bMeshes[j]->materialName = bMeshes[(INT_PTR)j - 1]->materialName;
         }
 
-        if (bMeshes[i]->materialName == "del")
+        if (bMeshes[j]->materialName == "del")
         {
             bMeshes.pop_back();
             continue;
@@ -167,7 +166,7 @@ bool ModelConverter::loadStatic(const aiScene* scene)
             aiVector3D tex = mesh->mTextureCoords[0][v];
 
             /*convert to vertex data format*/
-            bMeshes[i]->vertices.push_back(Vertex(float3(pos.x, pos.y, pos.z),
+            bMeshes[j]->vertices.push_back(Vertex(float3(pos.x, pos.y, pos.z),
                                           float2(tex.x, tex.y),
                                           float3(norm.x, norm.y, norm.z),
                                           float3(tangU.x, tangU.y, tangU.z)
@@ -186,133 +185,147 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
         if (trfNode)
         {
-            aiMatrix4x4 matrix = trfNode->mTransformation;
+            aiMatrix4x4 matrix = trfNode->mTransformation.Transpose();
             
 
-            bMeshes[i]->nodeTransform._11 = matrix.a1;
-            bMeshes[i]->nodeTransform._12 = matrix.a2;
-            bMeshes[i]->nodeTransform._13 = matrix.a3;
-            bMeshes[i]->nodeTransform._14 = matrix.a4;
-            bMeshes[i]->nodeTransform._21 = matrix.b1;
-            bMeshes[i]->nodeTransform._22 = matrix.b2;
-            bMeshes[i]->nodeTransform._23 = matrix.b3;
-            bMeshes[i]->nodeTransform._24 = matrix.b4;
-            bMeshes[i]->nodeTransform._31 = matrix.c1;
-            bMeshes[i]->nodeTransform._32 = matrix.c2;
-            bMeshes[i]->nodeTransform._33 = matrix.c3;
-            bMeshes[i]->nodeTransform._34 = matrix.c4;
-            bMeshes[i]->nodeTransform._41 = matrix.d1;
-            bMeshes[i]->nodeTransform._42 = matrix.d2;
-            bMeshes[i]->nodeTransform._43 = matrix.d3;
-            bMeshes[i]->nodeTransform._44 = matrix.d4;
+            bMeshes[j]->nodeTransform._11 = matrix.a1;
+            bMeshes[j]->nodeTransform._12 = matrix.a2;
+            bMeshes[j]->nodeTransform._13 = matrix.a3;
+            bMeshes[j]->nodeTransform._14 = matrix.a4;
+            bMeshes[j]->nodeTransform._21 = matrix.b1;
+            bMeshes[j]->nodeTransform._22 = matrix.b2;
+            bMeshes[j]->nodeTransform._23 = matrix.b3;
+            bMeshes[j]->nodeTransform._24 = matrix.b4;
+            bMeshes[j]->nodeTransform._31 = matrix.c1;
+            bMeshes[j]->nodeTransform._32 = matrix.c2;
+            bMeshes[j]->nodeTransform._33 = matrix.c3;
+            bMeshes[j]->nodeTransform._34 = matrix.c4;
+            bMeshes[j]->nodeTransform._41 = matrix.d1;
+            bMeshes[j]->nodeTransform._42 = matrix.d2;
+            bMeshes[j]->nodeTransform._43 = matrix.d3;
+            bMeshes[j]->nodeTransform._44 = matrix.d4;
 
         }
         else
         {
-            std::cout << "Couldn't find the associated node!\n";
+            std::cout << "\nCouldn't find the associated node!\n";
 
-            XMStoreFloat4x4(&bMeshes[i]->nodeTransform, XMMatrixIdentity());
+            XMStoreFloat4x4(&bMeshes[j]->nodeTransform, XMMatrixIdentity());
         }
 
-        /*apply centering and scaling if needed*/
-
-        XMFLOAT3 center;
-        DirectX::XMStoreFloat3(&center, 0.5f * (vMin + vMax));
-
-        std::cout << "\nCenter at " << center.x << " | " << center.y << " | " << center.z << "." <<std::endl;
-
-        if (iData.ScaleFactor != 1.0f)
-        {
-            std::cout << "Scaling with factor " << iData.ScaleFactor << std::endl;
-        }
+        std::cout << "\n---------------------------------------------------\n\n";
 
         if (iData.TransformApply != 0)
         {
             XMVECTOR vRot, vPos, vScale;
-            XMMatrixDecompose(&vScale, &vRot, &vPos, XMLoadFloat4x4(&bMeshes[i]->nodeTransform));
+            XMMatrixDecompose(&vScale, &vRot, &vPos, XMLoadFloat4x4(&bMeshes[j]->nodeTransform));
 
             XMFLOAT3 tScale;
             XMStoreFloat3(&tScale, vScale);
 
             if (tScale.x != tScale.y && tScale.x != tScale.z)
             {
-                std::cout << "Warning: Non-uniform scaling detected!\n";
+                std::cout << "Warning: Non-uniform scaling in node detected!\n";
             }
 
-            if (tScale.x > 5.0f) tScale.x = 1.0f;
-            if (tScale.y > 5.0f) tScale.y = 1.0f;
-            if (tScale.z > 5.0f) tScale.z = 1.0f;
+            XMFLOAT3 tPos;
+            XMStoreFloat3(&tPos, vPos);
+
+            tPos.x /= tScale.x;
+            tPos.y /= tScale.y;
+            tPos.z /= tScale.z;
+
+            if (tScale.x != 1.0f) tScale.x = 1.0f;
+            if (tScale.y != 1.0f) tScale.y = 1.0f;
+            if (tScale.z != 1.0f) tScale.z = 1.0f;
 
             vScale = XMLoadFloat3(&tScale);
+            vPos = XMLoadFloat3(&tPos);
 
-            XMStoreFloat4x4(&bMeshes[i]->nodeTransform, XMMatrixScalingFromVector(vScale) * XMMatrixRotationQuaternion(vRot) * XMMatrixTranslationFromVector(vPos));
-
-        }
-
-        for (auto& m : bMeshes)
-        {
-            for (auto& v : m->vertices)
-            {
-                if (iData.CenterEnabled)
-                {
-                    v.Position.x -= center.x;
-                    v.Position.y -= center.y;
-                    v.Position.z -= center.z;
-                }
-
-                if (iData.ScaleFactor != 0.0f)
-                {
-                    DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
-                    XMVECTOR a = XMLoadFloat3(&xm);
-                    a = XMVectorScale(a, iData.ScaleFactor);
-                    DirectX::XMStoreFloat3(&xm, a);
-
-                    v.Position.x = xm.x;
-                    v.Position.y = xm.y;
-                    v.Position.z = xm.z;
-                }
-
-                if (iData.TransformApply != 0)
-                {
-                    XMFLOAT3 vec = { v.Position.x, v.Position.y, v.Position.z };
-                    XMFLOAT3 nVec = { v.Normal.x, v.Normal.y, v.Normal.z };
-                    XMFLOAT3 tVec = { v.TangentU.x, v.TangentU.y, v.TangentU.z };
-
-                    XMMATRIX trf = XMLoadFloat4x4(&bMeshes[i]->nodeTransform);
-
-                    transformXM(vec, trf);
-                    transformXM(nVec, trf);
-                    transformXM(tVec, trf);
-
-                    v.Position = { vec.x, vec.y, vec.z };
-                    v.Normal = { nVec.x, nVec.y, nVec.z };
-                    v.TangentU = { tVec.x, tVec.y, tVec.z };
-                    
-                }                
-
-            }
+            XMStoreFloat4x4(&bMeshes[j]->nodeTransform, XMMatrixScalingFromVector(vScale) * XMMatrixRotationQuaternion(vRot) * XMMatrixTranslationFromVector(vPos));
+            XMStoreFloat4x4(&bMeshes[j]->nodeRotation, XMMatrixRotationQuaternion(vRot));
         }
 
         /*get indices*/
-        bMeshes[i]->indices.reserve((INT_PTR)(mesh->mNumFaces) * 3);
+        bMeshes[j]->indices.reserve((INT_PTR)(mesh->mNumFaces) * 3);
         estimatedFileSize += (INT_PTR)(mesh->mNumFaces) * 3 * sizeof(uint32_t);
 
-        std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces << " faces.\n" << std::endl;
 
-
-        for (UINT j = 0; j < mesh->mNumFaces; j++)
+        for (UINT k = 0; k < mesh->mNumFaces; k++)
         {
-            bMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[0]);
-            bMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[1]);
-            bMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[2]);
+            bMeshes[j]->indices.push_back(mesh->mFaces[k].mIndices[0]);
+            bMeshes[j]->indices.push_back(mesh->mFaces[k].mIndices[1]);
+            bMeshes[j]->indices.push_back(mesh->mFaces[k].mIndices[2]);
         }
 
-        i++;
     }
+
+    /*apply centering transform and scaling if needed*/
+    XMFLOAT3 center;
+    DirectX::XMStoreFloat3(&center, 0.5f * (vMin + vMax));
+
+    if (iData.CenterEnabled)
+    {
+        std::cout << "\nCentering at " << center.x << " | " << center.y << " | " << center.z << ".." << std::endl;
+    }
+    if (iData.ScaleFactor != 1.0f)
+    {
+        std::cout << "Scaling with factor " << iData.ScaleFactor << ".." << std::endl;
+    }
+    if (iData.TransformApply)
+    {
+        std::cout << "Applying transforms..\n";
+    }
+
+    for (auto& m : bMeshes)
+    {
+        for (auto& v : m->vertices)
+        {
+            if (iData.CenterEnabled)
+            {
+                v.Position.x -= center.x;
+                v.Position.y -= center.y;
+                v.Position.z -= center.z;
+            }
+
+            if (iData.ScaleFactor != 0.0f)
+            {
+                DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
+                XMVECTOR a = XMLoadFloat3(&xm);
+                a = XMVectorScale(a, iData.ScaleFactor);
+                DirectX::XMStoreFloat3(&xm, a);
+
+                v.Position.x = xm.x;
+                v.Position.y = xm.y;
+                v.Position.z = xm.z;
+            }
+
+            if (iData.TransformApply != 0)
+            {
+                XMFLOAT3 vec = { v.Position.x, v.Position.y, v.Position.z };
+                XMFLOAT3 nVec = { v.Normal.x, v.Normal.y, v.Normal.z };
+                XMFLOAT3 tVec = { v.TangentU.x, v.TangentU.y, v.TangentU.z };
+
+                XMMATRIX trf = XMLoadFloat4x4(&m->nodeTransform);
+                XMMATRIX rf = XMLoadFloat4x4(&m->nodeRotation);
+
+                transformXM(vec, trf);
+                transformXM(nVec, rf);
+                transformXM(tVec, rf);
+
+                v.Position = { vec.x, vec.y, vec.z };
+                v.Normal = { nVec.x, nVec.y, nVec.z };
+                v.TangentU = { tVec.x, tVec.y, tVec.z };
+
+            }
+
+        }
+    }
+
 
     auto endTime = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Finished loading file.\n";
+    std::cout << "\nFinished loading file.\n";
     std::cout << "Estimated size: " << (estimatedFileSize / 1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
     std::cout << "\n===================================================\n\n";
    
@@ -331,8 +344,6 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     rMeshes.reserve(scene->mNumMeshes);
 
     std::cout << "Model contains " << scene->mNumMeshes << " mesh(es)!\n" << std::endl;
-
-    int i = 0;
 
     XMFLOAT3 cMin(+FLT_MAX, +FLT_MAX, +FLT_MAX);
     XMFLOAT3 cMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
@@ -483,24 +494,25 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
     for (UINT j = 0; j < scene->mNumMeshes; j++)
     {
-        aiMesh* mesh = scene->mMeshes[i];
+        aiMesh* mesh = scene->mMeshes[j];
 
         /*reserve memory for vertices*/
         rMeshes.push_back(new MeshRigged());
-        rMeshes[i]->vertices.reserve(mesh->mNumVertices);
+        rMeshes[j]->vertices.reserve(mesh->mNumVertices);
         estimatedFileSize += mesh->mNumVertices * 76;
 
-        std::cout<<"Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << std::endl;
+        std::cout<<"Mesh " << j << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices" << std::endl;
+        std::cout << "Mesh " << j << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces * 3 << " faces.\n" << std::endl;
 
         std::cout << "Input name of material for " << mesh->mName.C_Str() << ": ";
-        std::getline(std::cin, rMeshes[i]->materialName);
+        std::getline(std::cin, rMeshes[j]->materialName);
 
-        if (i > 0 && rMeshes[i]->materialName == "")
+        if (j > 0 && rMeshes[j]->materialName == "")
         {
-            rMeshes[i]->materialName = rMeshes[(INT_PTR)i - 1]->materialName;
+            rMeshes[j]->materialName = rMeshes[(INT_PTR)j - 1]->materialName;
         }
 
-        if (rMeshes[i]->materialName == "del")
+        if (rMeshes[j]->materialName == "del")
         {
             rMeshes.pop_back();
             continue;
@@ -524,7 +536,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
             tex = mesh->mTextureCoords[0][v];
             
             /*convert to vertex data format*/
-            rMeshes[i]->vertices.push_back(SkinnedVertex(float3(pos.x, pos.y, pos.z),
+            rMeshes[j]->vertices.push_back(SkinnedVertex(float3(pos.x, pos.y, pos.z),
                                              float2(tex.x, tex.y),
                                           float3(norm.x, norm.y, norm.z),
                                           float3(tangU.x, tangU.y, tangU.z)
@@ -542,129 +554,79 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
         if (trfNode)
         {
-            aiMatrix4x4 matrix = trfNode->mTransformation;
+            aiMatrix4x4 matrix = trfNode->mTransformation.Transpose();
 
 
-            rMeshes[i]->nodeTransform._11 = matrix.a1;
-            rMeshes[i]->nodeTransform._12 = matrix.a2;
-            rMeshes[i]->nodeTransform._13 = matrix.a3;
-            rMeshes[i]->nodeTransform._14 = matrix.a4;
-            rMeshes[i]->nodeTransform._21 = matrix.b1;
-            rMeshes[i]->nodeTransform._22 = matrix.b2;
-            rMeshes[i]->nodeTransform._23 = matrix.b3;
-            rMeshes[i]->nodeTransform._24 = matrix.b4;
-            rMeshes[i]->nodeTransform._31 = matrix.c1;
-            rMeshes[i]->nodeTransform._32 = matrix.c2;
-            rMeshes[i]->nodeTransform._33 = matrix.c3;
-            rMeshes[i]->nodeTransform._34 = matrix.c4;
-            rMeshes[i]->nodeTransform._41 = matrix.d1;
-            rMeshes[i]->nodeTransform._42 = matrix.d2;
-            rMeshes[i]->nodeTransform._43 = matrix.d3;
-            rMeshes[i]->nodeTransform._44 = matrix.d4;
+            rMeshes[j]->nodeTransform._11 = matrix.a1;
+            rMeshes[j]->nodeTransform._12 = matrix.a2;
+            rMeshes[j]->nodeTransform._13 = matrix.a3;
+            rMeshes[j]->nodeTransform._14 = matrix.a4;
+            rMeshes[j]->nodeTransform._21 = matrix.b1;
+            rMeshes[j]->nodeTransform._22 = matrix.b2;
+            rMeshes[j]->nodeTransform._23 = matrix.b3;
+            rMeshes[j]->nodeTransform._24 = matrix.b4;
+            rMeshes[j]->nodeTransform._31 = matrix.c1;
+            rMeshes[j]->nodeTransform._32 = matrix.c2;
+            rMeshes[j]->nodeTransform._33 = matrix.c3;
+            rMeshes[j]->nodeTransform._34 = matrix.c4;
+            rMeshes[j]->nodeTransform._41 = matrix.d1;
+            rMeshes[j]->nodeTransform._42 = matrix.d2;
+            rMeshes[j]->nodeTransform._43 = matrix.d3;
+            rMeshes[j]->nodeTransform._44 = matrix.d4;
 
         }
         else
         {
-            std::cout << "Couldn't find the associated node!\n";
+            std::cout << "\nCouldn't find the associated node!\n";
 
-            XMStoreFloat4x4(&rMeshes[i]->nodeTransform, XMMatrixIdentity());
+            XMStoreFloat4x4(&rMeshes[j]->nodeTransform, XMMatrixIdentity());
         }
 
-        /*apply centering and scaling if needed*/
-
-        XMFLOAT3 center;
-        DirectX::XMStoreFloat3(&center, 0.5f * (vMin + vMax));
-
-        std::cout << "Center at " << center.x << " | " << center.y << " | " << center.z << "." << std::endl;
-
-        if (iData.ScaleFactor != 1.0f)
-        {
-            std::cout << "Scaling with factor " << iData.ScaleFactor << std::endl;
-        }
+        std::cout << "\n---------------------------------------------------\n\n";
 
         if (iData.TransformApply != 0)
         {
             XMVECTOR vRot, vPos, vScale;
-            XMMatrixDecompose(&vScale, &vRot, &vPos, XMLoadFloat4x4(&rMeshes[i]->nodeTransform));
+            XMMatrixDecompose(&vScale, &vRot, &vPos, XMLoadFloat4x4(&rMeshes[j]->nodeTransform));
 
             XMFLOAT3 tScale;
             XMStoreFloat3(&tScale, vScale);
 
             if (tScale.x != tScale.y && tScale.x != tScale.z)
             {
-                std::cout << "Warning: Non-uniform scaling detected!\n";
+                std::cout << "Warning: Non-uniform scaling in node detected!\n";
             }
 
-            if (tScale.x > 5.0f) tScale.x = 1.0f;
-            if (tScale.y > 5.0f) tScale.y = 1.0f;
-            if (tScale.z > 5.0f) tScale.z = 1.0f;
+            XMFLOAT3 tPos;
+            XMStoreFloat3(&tPos, vPos);
+
+            tPos.x /= tScale.x;
+            tPos.y /= tScale.y;
+            tPos.z /= tScale.z;
+
+            if (tScale.x != 1.0f) tScale.x = 1.0f;
+            if (tScale.y != 1.0f) tScale.y = 1.0f;
+            if (tScale.z != 1.0f) tScale.z = 1.0f;
 
             vScale = XMLoadFloat3(&tScale);
+            vPos = XMLoadFloat3(&tPos);
 
-            XMStoreFloat4x4(&rMeshes[i]->nodeTransform, XMMatrixScalingFromVector(vScale) * XMMatrixRotationQuaternion(vRot) * XMMatrixTranslationFromVector(vPos));
+            XMStoreFloat4x4(&rMeshes[j]->nodeTransform, XMMatrixScalingFromVector(vScale) * XMMatrixRotationQuaternion(vRot) * XMMatrixTranslationFromVector(vPos));
+            XMStoreFloat4x4(&rMeshes[j]->nodeRotation, XMMatrixRotationQuaternion(vRot));
 
-        }
-
-        for (auto& m : rMeshes)
-        {
-            for (auto& v : m->vertices)
-            {
-
-                if (iData.CenterEnabled)
-                {
-                    v.Position.x -= center.x;
-                    v.Position.y -= center.y;
-                    v.Position.z -= center.z;
-                }
-
-                if (iData.ScaleFactor != 1.0f)
-                {
-                    DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
-                    XMVECTOR a = XMLoadFloat3(&xm);
-                    a = XMVectorScale(a, iData.ScaleFactor);
-                    DirectX::XMStoreFloat3(&xm, a);
-
-                    v.Position.x = xm.x;
-                    v.Position.y = xm.y;
-                    v.Position.z = xm.z;
-                }
-
-                if (iData.TransformApply != 0)
-                {
-                    XMFLOAT3 vec = { v.Position.x, v.Position.y, v.Position.z };
-                    XMFLOAT3 nVec = { v.Normal.x, v.Normal.y, v.Normal.z };
-                    XMFLOAT3 tVec = { v.TangentU.x, v.TangentU.y, v.TangentU.z };
-
-                    XMMATRIX trf = XMLoadFloat4x4(&rMeshes[i]->nodeTransform);
-
-                    transformXM(vec, trf);
-                    transformXM(nVec, trf);
-                    transformXM(tVec, trf);
-
-                    v.Position = { vec.x, vec.y, vec.z };
-                    v.Normal = { nVec.x, nVec.y, nVec.z };
-                    v.TangentU = { tVec.x, tVec.y, tVec.z };
-
-                }
-
-            }
         }
 
         /*get indices*/
-        rMeshes[i]->indices.reserve((long long)(mesh->mNumFaces) * 3);
+        rMeshes[j]->indices.reserve((long long)(mesh->mNumFaces) * 3);
         estimatedFileSize += (long long)(mesh->mNumFaces) * 3 * sizeof(uint32_t);
 
-        std::cout << "Mesh " << i << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumFaces * 3 << " faces.\n" << std::endl;
-
-
-        for (UINT j = 0; j < mesh->mNumFaces; j++)
+        for (UINT k = 0; k < mesh->mNumFaces; k++)
         {
-            rMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[0]);
-            rMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[1]);
-            rMeshes[i]->indices.push_back(mesh->mFaces[j].mIndices[2]);
+            rMeshes[j]->indices.push_back(mesh->mFaces[k].mIndices[0]);
+            rMeshes[j]->indices.push_back(mesh->mFaces[k].mIndices[1]);
+            rMeshes[j]->indices.push_back(mesh->mFaces[k].mIndices[2]);
         }
 
-        i++;
     }
 
     /*add weights from bones to vertices*/
@@ -705,6 +667,71 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
     }
 
+
+    /*apply centering and scaling if needed*/
+
+    XMFLOAT3 center;
+    DirectX::XMStoreFloat3(&center, 0.5f * (vMin + vMax));
+
+    
+    if (iData.CenterEnabled)
+    {
+        std::cout << "\nCentering at " << center.x << " | " << center.y << " | " << center.z << ".." << std::endl;
+    }
+    if (iData.ScaleFactor != 1.0f)
+    {
+        std::cout << "Scaling with factor " << iData.ScaleFactor << ".." << std::endl;
+    }
+    if (iData.TransformApply)
+    {
+        std::cout << "Applying transforms..\n";
+    }
+
+    for (auto& m : rMeshes)
+    {
+        for (auto& v : m->vertices)
+        {
+
+            if (iData.CenterEnabled)
+            {
+                v.Position.x -= center.x;
+                v.Position.y -= center.y;
+                v.Position.z -= center.z;
+            }
+
+            if (iData.ScaleFactor != 1.0f)
+            {
+                DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
+                XMVECTOR a = XMLoadFloat3(&xm);
+                a = XMVectorScale(a, iData.ScaleFactor);
+                DirectX::XMStoreFloat3(&xm, a);
+
+                v.Position.x = xm.x;
+                v.Position.y = xm.y;
+                v.Position.z = xm.z;
+            }
+
+            if (iData.TransformApply != 0)
+            {
+                XMFLOAT3 vec = { v.Position.x, v.Position.y, v.Position.z };
+                XMFLOAT3 nVec = { v.Normal.x, v.Normal.y, v.Normal.z };
+                XMFLOAT3 tVec = { v.TangentU.x, v.TangentU.y, v.TangentU.z };
+
+                XMMATRIX trf = XMLoadFloat4x4(&m->nodeTransform);
+                XMMATRIX rf = XMLoadFloat4x4(&m->nodeRotation);
+
+                transformXM(vec, trf);
+                transformXM(nVec, rf);
+                transformXM(tVec, rf);
+
+                v.Position = { vec.x, vec.y, vec.z };
+                v.Normal = { nVec.x, nVec.y, nVec.z };
+                v.TangentU = { tVec.x, tVec.y, tVec.z };
+
+            }
+
+        }
+    }
     
 
     auto endTime = std::chrono::high_resolution_clock::now();
@@ -717,7 +744,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
         estimatedFileSize += 6 + 3 * 10;
     }
 
-    std::cout << "Finished loading file.\n";
+    std::cout << "\nFinished loading file.\n";
     std::cout << "Estimated size: " << (estimatedFileSize/1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;
     std::cout << "\n===================================================\n\n";
 
@@ -855,25 +882,27 @@ bool ModelConverter::writeS3D()
         fileHandle.write(reinterpret_cast<const char*>(&b.Name[0]), boneStrSize);
 
         /*bone offset matrix*/
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.a1), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.a2), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.a3), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.a4), sizeof(float));
+        aiMatrix4x4 offsetMatrix = b.AIBone->mOffsetMatrix.Transpose();
 
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.b1), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.b2), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.b3), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.b4), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a1), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a2), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a3), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a4), sizeof(float));
 
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.c1), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.c2), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.c3), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.c4), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.b1), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.b2), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.b3), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.b4), sizeof(float));
 
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.d1), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.d2), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.d3), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&b.AIBone->mOffsetMatrix.d4), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.c1), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.c2), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.c3), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.c4), sizeof(float));
+
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.d1), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.d2), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.d3), sizeof(float));
+        fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.d4), sizeof(float));
 
 
     }
