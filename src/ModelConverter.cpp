@@ -251,6 +251,20 @@ bool ModelConverter::loadStatic(const aiScene* scene)
                 tPos.z = 0;
             }
 
+            if (iData.AdditionalRotationX != 0)
+            {
+                XMVECTOR ar = XMQuaternionRotationRollPitchYaw(XMConvertToRadians((float)iData.AdditionalRotationX), 0.0f, 0.0f);
+                if (XMQuaternionIsIdentity(vRot))
+                {
+                    vRot = ar;
+                }
+                else
+                {
+                    vRot = XMVectorMultiply(vRot, ar);
+                }
+                
+            }
+
             vScale = XMLoadFloat3(&tScale);
             vPos = XMLoadFloat3(&tPos);
 
@@ -630,6 +644,20 @@ bool ModelConverter::loadRigged(const aiScene* scene)
                 tPos.x = 0;
                 tPos.y = 0;
                 tPos.z = 0;
+            }
+
+            if (iData.AdditionalRotationX != 0)
+            {
+                XMVECTOR ar = XMQuaternionRotationRollPitchYaw(XMConvertToRadians((float)iData.AdditionalRotationX), 0.0f, 0.0f);
+                if (XMQuaternionIsIdentity(vRot))
+                {
+                    vRot = ar;
+                }
+                else
+                {
+                    vRot = XMVectorMultiply(vRot, ar);
+                }
+
             }
 
             vScale = XMLoadFloat3(&tScale);

@@ -77,6 +77,10 @@ int main(int argc, char* argv[])
             {
                 initData.Prefix = sVec[1];
             }
+            else if (sVec[0] == "-rx")
+            {
+                initData.AdditionalRotationX = (int)atoi(sVec[1].c_str());
+            }
             else
             {
                 std::cerr << "Unknown parameter " << argv[i] << std::endl;

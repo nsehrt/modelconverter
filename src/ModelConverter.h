@@ -104,6 +104,7 @@ struct InitData
     int CenterEnabled = 1;
     std::string Prefix = "";
     int TransformApply = 1;
+    int AdditionalRotationX = 0;
 
     friend std::ostream& operator<<(std::ostream& os, const InitData& id)
     {
