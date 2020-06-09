@@ -235,9 +235,21 @@ bool ModelConverter::loadStatic(const aiScene* scene)
             tPos.y /= tScale.y;
             tPos.z /= tScale.z;
 
-            if (tScale.x != 1.0f) tScale.x = 1.0f;
-            if (tScale.y != 1.0f) tScale.y = 1.0f;
-            if (tScale.z != 1.0f) tScale.z = 1.0f;
+            if (tScale.x != 1.0f || tScale.y != 1.0f || tScale.z != 1.0f)
+            {
+                tScale.x = 1.0f;
+                tScale.y = 1.0f;
+                tScale.z = 1.0f;
+
+                std::cout << "Warning: Scaling not equal 1!\n";
+            }
+
+            if (iData.CenterEnabled)
+            {
+                tPos.x = 0;
+                tPos.y = 0;
+                tPos.z = 0;
+            }
 
             vScale = XMLoadFloat3(&tScale);
             vPos = XMLoadFloat3(&tPos);
@@ -604,9 +616,21 @@ bool ModelConverter::loadRigged(const aiScene* scene)
             tPos.y /= tScale.y;
             tPos.z /= tScale.z;
 
-            if (tScale.x != 1.0f) tScale.x = 1.0f;
-            if (tScale.y != 1.0f) tScale.y = 1.0f;
-            if (tScale.z != 1.0f) tScale.z = 1.0f;
+            if (tScale.x != 1.0f || tScale.y != 1.0f || tScale.z != 1.0f)
+            {
+                tScale.x = 1.0f;
+                tScale.y = 1.0f;
+                tScale.z = 1.0f;
+
+                std::cout << "Warning: Scaling not equal 1!\n";
+            }
+
+            if (iData.CenterEnabled)
+            {
+                tPos.x = 0;
+                tPos.y = 0;
+                tPos.z = 0;
+            }
 
             vScale = XMLoadFloat3(&tScale);
             vPos = XMLoadFloat3(&tPos);
@@ -735,14 +759,6 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     
 
     auto endTime = std::chrono::high_resolution_clock::now();
-
-    estimatedFileSize += 5;
-
-    for (int i = 0; i < rMeshes.size(); i++)
-    {
-        estimatedFileSize += 3 * 3 * 4 + 9;
-        estimatedFileSize += 6 + 3 * 10;
-    }
 
     std::cout << "\nFinished loading file.\n";
     std::cout << "Estimated size: " << (estimatedFileSize/1024) << " kbytes (" << estimatedFileSize << " bytes)" << std::endl;

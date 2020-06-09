@@ -94,6 +94,7 @@ struct Bone
     int Index = -1;
     std::string ParentName;
     int ParentIndex = -1;
+    DirectX::XMFLOAT4X4 nodeTransform;
 };
 
 struct InitData
