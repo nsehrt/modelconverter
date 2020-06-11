@@ -31,9 +31,11 @@ int main(int argc, char* argv[])
     /*help dialog*/
     if (argc < 2 || std::string(argv[1]) == "-h" || std::string(argv[1]) == "-help")
     {
+        std::string empty;
         std::cout << "First parameter must be path to file or -h!\n";
         std::cout << "\nPossible parameters:\n";
-        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model\n-s\t- Scale the model by this factor\n-p\t- Prefix the output file with the entered string\n-nt\t- Do not apply node transform" << std::endl;
+        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model\n-s\t- Scale the model by this factor (-s=2)\n-p\t- Prefix the output file with the entered string (-p=PRE_)\n-nt\t- Do not apply node transform\n-o\t- Print the data of a b3d or s3d file (-ov for verbose output)\n" << std::endl;
+        std::getline(std::cin, empty);
         return 0;
     }
 
@@ -43,7 +45,7 @@ int main(int argc, char* argv[])
     initData.FileName = argv[1];
 
 #ifdef _DEBUG
-    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\test.fbx";
+    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\Tree.b3d";
 #endif
 
 
@@ -60,6 +62,16 @@ int main(int argc, char* argv[])
             else if (sVec[0] == "-nt")
             {
                 initData.TransformApply = 0;
+            }
+            else if (sVec[0] == "-o")
+            {
+                mConverter.printFile(initData.FileName,false);
+                return 0;
+            }
+            else if (sVec[0] == "-ov")
+            {
+                mConverter.printFile(initData.FileName, true);
+                return 0;
             }
             else
             {

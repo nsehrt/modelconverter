@@ -130,6 +130,10 @@ public:
     bool verifyB3D();
     bool verifyS3D();
 
+    void printFile(const std::string& fileName, bool verbose = true);
+    void printB3D(const std::string& fileName, bool verbose = true);
+    void printS3D(const std::string& fileName, bool verbose = true);
+
     std::string getVersionString() const
     {
         std::stringstream res;

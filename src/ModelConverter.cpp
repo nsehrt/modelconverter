@@ -444,6 +444,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
         }
     }
 
+
     std::sort(bones.begin(), bones.end(), [](const Bone& a, const Bone& b)->bool
               {
                   if (a.ParentIndex == b.ParentIndex)
@@ -466,6 +467,11 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     {
         bones[i].ParentIndex = findIndexInBones(bones, bones[i].ParentName);
     }
+
+    //for (const auto& b : bones)
+    //{
+    //    std::cout << "Bone " << b.Index << " (" << b.Name << ") is a child of " << b.ParentIndex << " (" << (b.ParentIndex > -1 ? bones[b.ParentIndex].Name : "-1") << ")" << std::endl;
+    //}
 
     std::vector<int> testHierarchy;
 
@@ -498,23 +504,6 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     std::cout << "\n===================================================\n";
 
     estimatedFileSize += (int)bones.size() * 75;
-
-    //for (const auto& b : bones)
-    //{
-    //    std::cout << "Bone " << b.Index << " (" << b.Name << ") is a child of " << b.ParentIndex << " (" << (b.ParentIndex > -1 ? bones[b.ParentIndex].Name : "-1") << ")" << std::endl;
-
-    //    aiVector3D pos;
-    //    aiQuaternion rot;
-    //    b.AIBone->mOffsetMatrix.DecomposeNoScaling(rot, pos);
-
-    //    //std::cout << "Pos: " << pos.x << " " << pos.y << " " << pos.z << "\n";
-    //    //std::cout << "Rot: " << rot.x << " " << rot.y << " " << rot.z << " " << rot.w << "\n";
-
-    //    //std::cout << b.AIBone->mOffsetMatrix.a1 << " " << b.AIBone->mOffsetMatrix.a2 << " " << b.AIBone->mOffsetMatrix.a3 << " " << b.AIBone->mOffsetMatrix.a4 << "\n";
-    //    //std::cout << b.AIBone->mOffsetMatrix.b1 << " " << b.AIBone->mOffsetMatrix.b2 << " " << b.AIBone->mOffsetMatrix.b3 << " " << b.AIBone->mOffsetMatrix.b4 << "\n";
-    //    //std::cout << b.AIBone->mOffsetMatrix.c1 << " " << b.AIBone->mOffsetMatrix.c2 << " " << b.AIBone->mOffsetMatrix.c3 << " " << b.AIBone->mOffsetMatrix.c4 << "\n";
-    //    //std::cout << b.AIBone->mOffsetMatrix.d1 << " " << b.AIBone->mOffsetMatrix.d2 << " " << b.AIBone->mOffsetMatrix.d3 << " " << b.AIBone->mOffsetMatrix.d4 << "\n";
-    //}
 
     std::cout << std::endl;
 
@@ -687,7 +676,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
         for (UINT k = 0; k < b.AIBone->mNumWeights; k++)
         {
-            rMeshes[0]->vertices[b.AIBone->mWeights[k].mVertexId].BlendIndices.push_back(k);
+            rMeshes[0]->vertices[b.AIBone->mWeights[k].mVertexId].BlendIndices.push_back(b.Index);
             rMeshes[0]->vertices[b.AIBone->mWeights[k].mVertexId].BlendWeights.push_back(b.AIBone->mWeights[k].mWeight);
         }
 
@@ -926,7 +915,7 @@ bool ModelConverter::writeS3D()
         fileHandle.write(reinterpret_cast<const char*>(&b.Name[0]), boneStrSize);
 
         /*bone offset matrix*/
-        aiMatrix4x4 offsetMatrix = b.AIBone->mOffsetMatrix.Transpose();
+        aiMatrix4x4 offsetMatrix = b.AIBone->mOffsetMatrix;
 
         fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a1), sizeof(float));
         fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a2), sizeof(float));
@@ -1506,4 +1495,405 @@ bool ModelConverter::verifyS3D()
     }
 
     return true;
+}
+
+void ModelConverter::printFile(const std::string& fileName, bool verbose)
+{
+    std::string::size_type idx;
+
+    idx = fileName.rfind('.');
+
+    if (idx != std::string::npos)
+    {
+        std::string ext = fileName.substr(idx + 1);
+
+        if (ext == "b3d")
+        {
+            printB3D(fileName, verbose);
+        }
+        else if (ext == "s3d")
+        {
+            printS3D(fileName, verbose);
+        }
+        else
+        {
+            std::cerr << "Invalid file!" << std::endl;
+        }
+
+    }
+    else
+    {
+        std::cerr << "Invalid file!" << std::endl;
+    }
+    return;
+}
+
+void ModelConverter::printB3D(const std::string& fileName, bool verbose)
+{
+
+    std::cout << "Printing B3D file " << fileName << "..\n" << std::endl;
+    std::cout << "\n---------------------------------------------------\n\n";
+
+    /*open file*/
+    std::streampos fileSize;
+    std::ifstream file(fileName, std::ios::binary);
+
+    /*get file size*/
+    file.seekg(0, std::ios::end);
+    fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    if (fileSize == 0 || !file.good())
+    {
+        std::cerr << "Can not open file!\n";
+        return;
+    }
+
+    /*check header*/
+    bool header = true;
+    char headerBuffer[4] = { 'b','3','d','f' };
+
+    for (int i = 0; i < 4; i++)
+    {
+        char temp;
+        file.read(&temp, sizeof(temp));
+
+        if (temp != headerBuffer[i])
+        {
+            header = false;
+            break;
+        }
+    }
+
+    if (header == false)
+    {
+        /*header incorrect*/
+        std::cerr << "File contains incorrect header!\n";
+        return;
+    }
+
+
+    char numMeshes;
+    file.read(&numMeshes, sizeof(numMeshes));
+
+    std::cout << std::fixed << std::showpoint << std::setprecision(2) << "Number of meshes: " << (int)numMeshes << "\n\n";
+
+    for (char i = 0; i < numMeshes; i++)
+    {
+        std::cout << "\n===================================================\n\n";
+        std::cout << "Mesh " << (int)i << ":\n\n";
+
+        short slen = 0;
+        file.read((char*)(&slen), sizeof(short));
+
+        char* matStr = new char[(INT_PTR)slen + 1];
+        file.read(matStr, slen);
+        matStr[slen] = '\0';
+
+        std::cout << "Material:\t" << matStr << "\n";
+
+        int vertCount = 0;
+        file.read((char*)(&vertCount), sizeof(vertCount));
+
+        std::cout << "VertCount:\t" << vertCount << "\n";
+
+        std::cout << "\n---------------------------------------------------\n\n";
+
+        Vertex vertex;
+
+        for (int j = 0; j < vertCount; j++)
+        {
+            file.read((char*)(&vertex.Position.x), sizeof(float));
+            file.read((char*)(&vertex.Position.y), sizeof(float));
+            file.read((char*)(&vertex.Position.z), sizeof(float));
+
+            file.read((char*)(&vertex.Texture.u), sizeof(float));
+            file.read((char*)(&vertex.Texture.v), sizeof(float));
+
+            file.read((char*)(&vertex.Normal.x), sizeof(float));
+            file.read((char*)(&vertex.Normal.y), sizeof(float));
+            file.read((char*)(&vertex.Normal.z), sizeof(float));
+
+            file.read((char*)(&vertex.TangentU.x), sizeof(float));
+            file.read((char*)(&vertex.TangentU.y), sizeof(float));
+            file.read((char*)(&vertex.TangentU.z), sizeof(float));
+
+            if (verbose)
+            {
+                std::cout << "Pos: " << vertex.Position.x << " | " << vertex.Position.y << " | " << vertex.Position.z << "\n";
+                std::cout << "Tex: " << vertex.Texture.u << " | " << vertex.Texture.v << "\n";
+                std::cout << "Nor: " << vertex.Normal.x << " | " << vertex.Normal.y << " | " << vertex.Normal.z << "\n";
+                std::cout << "Tan: " << vertex.TangentU.x << " | " << vertex.TangentU.y << " | " << vertex.TangentU.z << "\n";
+                std::cout << "\n";
+            }
+
+        }
+
+        if(verbose)
+        std::cout << "\n---------------------------------------------------\n\n";
+
+        int vInd = 0;
+        file.read((char*)(&vInd), sizeof(vInd));
+
+        std::cout << "IndCount:\t" << vInd << "\n";
+
+        std::cout << "\n---------------------------------------------------\n\n";
+
+        int temp = 0;
+
+        for (int j = 0; j < vInd; j++)
+        {
+            file.read((char*)(&temp), sizeof(int));
+
+            if (verbose)
+            {
+                if ((j + 1) % 3 != 0)
+                {
+                    std::cout << temp << ", ";
+                }
+                else
+                {
+                    std::cout << temp << "\n";
+                }
+            }
+
+            
+        }
+        std::cout << std::endl;
+
+    }
+
+}
+
+void ModelConverter::printS3D(const std::string& fileName, bool verbose)
+{
+
+    std::cout << "Printing S3D file " << fileName << "..\n" << std::endl;
+    std::cout << "\n---------------------------------------------------\n\n";
+
+    /*open file*/
+    std::streampos fileSize;
+    std::ifstream file(fileName, std::ios::binary);
+
+    /*get file size*/
+    file.seekg(0, std::ios::end);
+    fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    if (fileSize == 0 || !file.good())
+    {
+        std::cerr << "Can not open file!\n";
+        return;
+    }
+
+    /*check header*/
+    bool header = true;
+    char headerBuffer[4] = { 's','3','d','f' };
+
+    for (int i = 0; i < 4; i++)
+    {
+        char temp;
+        file.read(&temp, sizeof(temp));
+
+        if (temp != headerBuffer[i])
+        {
+            header = false;
+            break;
+        }
+    }
+
+    if (header == false)
+    {
+        /*header incorrect*/
+        std::cerr << "File contains incorrect header!\n";
+        return;
+    }
+
+    char vNumBones = 0;
+    file.read((char*)(&vNumBones), sizeof(char));
+
+    std::cout << std::fixed << std::showpoint << std::setprecision(2) << "NumBones: " << (int)vNumBones << std::endl;
+
+    std::cout << "\n---------------------------------------------------\n\n";
+
+    int temp;
+    DirectX::XMFLOAT4X4 mOffset;
+
+    std::vector<std::string> boneNames(vNumBones);
+
+    for (char i = 0; i < vNumBones; i++)
+    {
+        /*id*/
+        char x;
+        file.read((char*)&x, sizeof(char));
+        temp = (int)x;
+
+        /*name length*/
+        short slen = 0;
+        file.read((char*)(&slen), sizeof(short));
+
+        /*name*/
+        char* bname = new char[(INT_PTR)slen + 1];
+        file.read(bname, slen);
+        bname[slen] = '\0';
+
+        boneNames[temp] = std::string(bname);
+
+        std::cout << "Bone ID:\t" << (int)temp << "\n";
+        std::wcout << "Bone Name:\t" << bname << "\n";
+
+        /*matrix*/
+        file.read((char*)&mOffset._11, sizeof(float));
+        file.read((char*)&mOffset._12, sizeof(float));
+        file.read((char*)&mOffset._13, sizeof(float));
+        file.read((char*)&mOffset._14, sizeof(float));
+                              
+        file.read((char*)&mOffset._21, sizeof(float));
+        file.read((char*)&mOffset._22, sizeof(float));
+        file.read((char*)&mOffset._23, sizeof(float));
+        file.read((char*)&mOffset._24, sizeof(float));
+                              
+        file.read((char*)&mOffset._31, sizeof(float));
+        file.read((char*)&mOffset._32, sizeof(float));
+        file.read((char*)&mOffset._33, sizeof(float));
+        file.read((char*)&mOffset._34, sizeof(float));
+                              
+        file.read((char*)&mOffset._41, sizeof(float));
+        file.read((char*)&mOffset._42, sizeof(float));
+        file.read((char*)&mOffset._43, sizeof(float));
+        file.read((char*)&mOffset._44, sizeof(float));
+
+        if (verbose)
+        {
+            std::cout << "Offset Matrix:\n";
+            std::cout << mOffset._11 << " | " << mOffset._12 << " | " << mOffset._13 << " | " << mOffset._14 << "\n";
+            std::cout << mOffset._21 << " | " << mOffset._22 << " | " << mOffset._23 << " | " << mOffset._24 << "\n";
+            std::cout << mOffset._31 << " | " << mOffset._32 << " | " << mOffset._33 << " | " << mOffset._34 << "\n";
+            std::cout << mOffset._41 << " | " << mOffset._42 << " | " << mOffset._43 << " | " << mOffset._44 << "\n";
+        }
+
+        std::cout << "\n";
+    }
+
+    std::vector<int> boneHierarchyCheck(vNumBones);
+
+    for (char i = 0; i < vNumBones; i++)
+    {
+        int index;
+
+        file.read((char*)(&index), sizeof(int));
+        file.read((char*)(&boneHierarchyCheck[index]), sizeof(int));
+    }
+
+    std::cout << "\n---------------------------------------------------\n\n";
+
+    for (int i = 0; i < boneHierarchyCheck.size(); i++)
+    {
+        std::cout << boneNames[i] << " f(" << i << ") is child of bone " << (boneHierarchyCheck[i] >= 0 ? boneNames[boneHierarchyCheck[i]] : "-1") << " (" << boneHierarchyCheck[i] << ")" << std::endl;
+    }
+
+
+    std::cout << "\n\n---------------------------------------------------\n\n";
+
+    char numMeshes;
+    file.read(&numMeshes, sizeof(numMeshes));
+
+    std::cout << "Number of meshes: " << (int)numMeshes << "\n\n";
+
+    for (char i = 0; i < numMeshes; i++)
+    {
+        std::cout << "\n===================================================\n\n";
+        std::cout << "Mesh " << (int)i << ":\n\n";
+
+        short slen = 0;
+        file.read((char*)(&slen), sizeof(short));
+
+        char* matStr = new char[(INT_PTR)slen + 1];
+        file.read(matStr, slen);
+        matStr[slen] = '\0';
+
+        std::cout << "Material:\t" << matStr << "\n";
+
+        int vertCount = 0;
+        file.read((char*)(&vertCount), sizeof(vertCount));
+
+        std::cout << "VertCount:\t" << vertCount << "\n";
+
+        std::cout << "\n---------------------------------------------------\n\n";
+
+        SkinnedVertex vertex;
+
+        for (int j = 0; j < vertCount; j++)
+        {
+            file.read((char*)(&vertex.Position.x), sizeof(float));
+            file.read((char*)(&vertex.Position.y), sizeof(float));
+            file.read((char*)(&vertex.Position.z), sizeof(float));
+
+            file.read((char*)(&vertex.Texture.u), sizeof(float));
+            file.read((char*)(&vertex.Texture.v), sizeof(float));
+
+            file.read((char*)(&vertex.Normal.x), sizeof(float));
+            file.read((char*)(&vertex.Normal.y), sizeof(float));
+            file.read((char*)(&vertex.Normal.z), sizeof(float));
+
+            file.read((char*)(&vertex.TangentU.x), sizeof(float));
+            file.read((char*)(&vertex.TangentU.y), sizeof(float));
+            file.read((char*)(&vertex.TangentU.z), sizeof(float));
+
+            vertex.BlendIndices.resize(4);
+            vertex.BlendWeights.resize(4);
+
+            for (int k = 0; k < 4; k++)
+            {
+                file.read((char*)(&vertex.BlendIndices[k]), sizeof(UINT));
+                file.read((char*)(&vertex.BlendWeights[k]), sizeof(float));
+            }
+
+            if (verbose)
+            {
+                std::cout << "Pos: " << vertex.Position.x << " | " << vertex.Position.y << " | " << vertex.Position.z << "\n";
+                std::cout << "Tex: " << vertex.Texture.u << " | " << vertex.Texture.v << "\n";
+                std::cout << "Nor: " << vertex.Normal.x << " | " << vertex.Normal.y << " | " << vertex.Normal.z << "\n";
+                std::cout << "Tan: " << vertex.TangentU.x << " | " << vertex.TangentU.y << " | " << vertex.TangentU.z << "\n";
+                std::cout << "BlInd: " << vertex.BlendIndices[0] << " | " << vertex.BlendIndices[1] << " | " << vertex.BlendIndices[2] << " | " << vertex.BlendIndices[3] << "\n";
+                std::cout << "BlWgt: " << vertex.BlendWeights[0] << " | " << vertex.BlendWeights[1] << " | " << vertex.BlendWeights[2] << " | " << vertex.BlendWeights[3] << "\n";
+                std::cout << "\n";
+            }
+
+        }
+
+        if(verbose)
+        std::cout << "\n---------------------------------------------------\n\n";
+
+        int vInd = 0;
+        file.read((char*)(&vInd), sizeof(vInd));
+
+        std::cout << "IndCount:\t" << vInd << "\n";
+
+        std::cout << "\n---------------------------------------------------\n\n";
+
+        int temp = 0;
+
+        for (int j = 0; j < vInd; j++)
+        {
+            file.read((char*)(&temp), sizeof(int));
+
+            if (verbose)
+            {
+                if ((j + 1) % 3 != 0)
+                {
+                    std::cout << temp << ", ";
+                }
+                else
+                {
+                    std::cout << temp << "\n";
+                }
+            }
+
+
+        }
+        std::cout << std::endl;
+
+    }
+
 }
