@@ -15,6 +15,47 @@ bool ModelConverter::load(InitData& initData)
     _splitpath_s(initData.FileName.c_str(), NULL, 0, NULL, 0, id, 1024, NULL, 0);
     baseFileName = id;
 
+    iData = initData;
+
+    /*load m3d file*/
+    std::string ext = initData.FileName.substr(initData.FileName.rfind('.') + 1);
+
+    if (ext == "m3d")
+    {
+        std::cout << "Load m3d file..\n";
+
+        baseFileName.append(".s3d");
+        writeFileName = iData.Prefix + baseFileName;
+
+        bool processStatus = loadM3D();
+
+        if (!processStatus)
+        {
+            std::cerr << "Failed to load M3D model!" << std::endl;
+            return processStatus;
+        }
+
+        processStatus = writeS3D();
+
+        if (!processStatus)
+        {
+            std::cerr << "Failed to write rigged model to " << writeFileName << "!" << std::endl;
+            return processStatus;
+        }
+
+        processStatus = verifyS3D();
+
+        if (!processStatus)
+        {
+            std::cerr << "Failed to verify rigged model! (" << writeFileName << ")" << std::endl;
+            return processStatus;
+        }
+
+        return true;
+    }
+
+
+    /*the normal import*/
     const aiScene* loadedScene = importer.ReadFile(initData.FileName, aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_ConvertToLeftHanded | aiProcess_GenNormals | aiProcess_CalcTangentSpace);
 
     if (!loadedScene)
@@ -23,18 +64,16 @@ bool ModelConverter::load(InitData& initData)
         return false;
     }
 
-    iData = initData;
-
     /*check if rigged*/
     bool rigged = false;
 
-    for (UINT i = 0; i < loadedScene->mNumMeshes; i++)
-    {
-        if (loadedScene->mMeshes[i]->HasBones())
+        for (UINT i = 0; i < loadedScene->mNumMeshes; i++)
         {
-            rigged = true;
+            if (loadedScene->mMeshes[i]->HasBones())
+            {
+                rigged = true;
+            }
         }
-    }
 
     bool processStatus = false;
 
@@ -782,6 +821,161 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     std::cout << "\n===================================================\n\n";
 
     return true;
+}
+
+bool ModelConverter::loadM3D()
+{
+    /*load bones, rmeshes*/
+    std::ifstream fin(iData.FileName);
+
+    UINT numMaterials = 0;
+    UINT numVertices = 0;
+    UINT numTriangles = 0;
+    UINT numBones = 0;
+    UINT numAnimationClips = 0;
+
+    std::string ignore;
+
+    if (fin)
+    {
+        fin >> ignore; // file header text
+        fin >> ignore >> numMaterials;
+        fin >> ignore >> numVertices;
+        fin >> ignore >> numTriangles;
+        fin >> ignore >> numBones;
+        fin >> ignore >> numAnimationClips;
+
+        /*skip materials*/
+        fin >> ignore;
+
+        for (UINT i = 0; i < numMaterials; ++i)
+        {
+            fin >> ignore >> ignore;
+            fin >> ignore >> ignore >> ignore >> ignore;
+            fin >> ignore >> ignore >> ignore >> ignore;
+            fin >> ignore >> ignore;
+            fin >> ignore >> ignore;
+            fin >> ignore >> ignore;
+            fin >> ignore >> ignore;
+            fin >> ignore >> ignore;
+        } 
+
+        /*subset table*/
+        std::vector<Subset> subsets;
+        subsets.resize(numMaterials);
+
+        fin >> ignore; // subset header text
+        for (UINT i = 0; i < numMaterials; ++i)
+        {
+            fin >> ignore >> subsets[i].Id;
+            fin >> ignore >> subsets[i].VertexStart;
+            fin >> ignore >> subsets[i].VertexCount;
+            fin >> ignore >> subsets[i].FaceStart;
+            fin >> ignore >> subsets[i].FaceCount;
+        }
+
+        /*vertices*/
+        std::vector<SkinnedVertex> skvertices(numVertices);
+        int boneIndices[4];
+        float weights[4];
+
+        fin >> ignore;
+
+        for (UINT i = 0; i < numVertices; ++i)
+        {
+            float blah;
+            fin >> ignore >> skvertices[i].Position.x >> skvertices[i].Position.y >> skvertices[i].Position.z;
+            fin >> ignore >> skvertices[i].TangentU.x >> skvertices[i].TangentU.y >> skvertices[i].TangentU.z >> blah /*skvertices[i].TangentU.w*/;
+            fin >> ignore >> skvertices[i].Normal.x >> skvertices[i].Normal.y >> skvertices[i].Normal.z;
+            fin >> ignore >> skvertices[i].Texture.u >> skvertices[i].Texture.v;
+            fin >> ignore >> weights[0] >> weights[1] >> weights[2] >> weights[3];
+            fin >> ignore >> boneIndices[0] >> boneIndices[1] >> boneIndices[2] >> boneIndices[3];
+
+            skvertices[i].BlendWeights.resize(4);
+            skvertices[i].BlendIndices.resize(4);
+
+            skvertices[i].BlendWeights[0] = weights[0];
+            skvertices[i].BlendWeights[1] = weights[1];
+            skvertices[i].BlendWeights[2] = weights[2];
+            skvertices[i].BlendWeights[3] = 1.0f - weights[0] - weights[1] - weights[2];
+
+            skvertices[i].BlendIndices[0] = (BYTE)boneIndices[0];
+            skvertices[i].BlendIndices[1] = (BYTE)boneIndices[1];
+            skvertices[i].BlendIndices[2] = (BYTE)boneIndices[2];
+            skvertices[i].BlendIndices[3] = (BYTE)boneIndices[3];
+        }
+
+        /*indices*/
+        std::vector<USHORT> indices(numTriangles*3);
+
+        fin >> ignore; // triangles header textd
+        for (UINT i = 0; i < numTriangles; ++i)
+        {
+            fin >> indices[i * 3 + 0] >> indices[i * 3 + 1] >> indices[i * 3 + 2];
+        }
+
+
+        std::vector<aiMatrix4x4> boneOffsets(numBones);
+
+        fin >> ignore; // BoneOffsets header text
+        for (UINT i = 0; i < numBones; ++i)
+        {
+            fin >> ignore >>
+                boneOffsets[i].a1 >> boneOffsets[i].a2 >> boneOffsets[i].a3 >> boneOffsets[i].a4 >>
+                boneOffsets[i].b1 >> boneOffsets[i].b2 >> boneOffsets[i].b3 >> boneOffsets[i].b4 >>
+                boneOffsets[i].c1 >> boneOffsets[i].c2 >> boneOffsets[i].c3 >> boneOffsets[i].c4 >>
+                boneOffsets[i].d1 >> boneOffsets[i].d2 >> boneOffsets[i].d3 >> boneOffsets[i].d4;
+        }
+    
+
+        std::vector<int> boneIndexToParent(numBones);
+
+        fin >> ignore; // BoneHierarchy header text
+        for (UINT i = 0; i < numBones; ++i)
+        {
+            fin >> ignore >> boneIndexToParent[i];
+        }
+
+        fin.close();
+
+        /****/
+        bones.resize(numBones);
+
+        for (UINT i = 0; i < numBones; i++)
+        {
+            bones[i].Index = i;
+            bones[i].ParentIndex = boneIndexToParent[i];
+            bones[i].Name = "bone";
+            bones[i].ParentName = "bone";
+            XMStoreFloat4x4(&bones[i].nodeTransform, XMMatrixIdentity());
+            bones[i].AIBone = new aiBone();
+            bones[i].AIBone->mOffsetMatrix = boneOffsets[i];
+        }
+
+
+
+        rMeshes.push_back(new MeshRigged());
+        rMeshes[0]->vertices.resize(numVertices);
+
+        for (int i = 0; i < numVertices; i++)
+        {
+           rMeshes[0]->vertices[i] = skvertices[i];
+        }
+
+        rMeshes[0]->materialName = "default";
+
+        rMeshes[0]->indices.resize(indices.size());
+
+        for (UINT k = 0; k < indices.size(); k++)
+        {
+            rMeshes[0]->indices[k] = indices[k];
+        }
+
+        return true;
+    }
+
+
+    return false;
 }
 
 

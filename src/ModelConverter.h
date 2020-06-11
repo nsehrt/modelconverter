@@ -114,6 +114,15 @@ struct InitData
     }
 };
 
+struct Subset
+{
+    UINT Id = -1;
+    UINT VertexStart = 0;
+    UINT VertexCount = 0;
+    UINT FaceStart = 0;
+    UINT FaceCount = 0;
+};
+
 class ModelConverter
 {
 public:
@@ -123,6 +132,7 @@ public:
     bool load(InitData& initData);
     bool loadStatic(const aiScene* scene);
     bool loadRigged(const aiScene* scene);
+    bool loadM3D();
 
     bool writeB3D();
     bool writeS3D();
