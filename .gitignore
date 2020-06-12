@@ -356,3 +356,4 @@ healthchecksdb
 *.dds
 /basic.s3d
 /geo.s3d
+/soldier.s3d

@@ -51,6 +51,14 @@ bool ModelConverter::load(InitData& initData)
             return processStatus;
         }
 
+        processStatus = writeCLP();
+
+        if (!processStatus)
+        {
+            std::cerr << "Failed to write animation clips!" << std::endl;
+            return processStatus;
+        }
+
         return true;
     }
 
@@ -104,6 +112,20 @@ bool ModelConverter::load(InitData& initData)
         {
             std::cerr << "Failed to verify rigged model! (" << writeFileName << ")" << std::endl;
             return processStatus;
+        }
+
+        if (animationClips.size() > 0)
+        {
+            processStatus = writeCLP();
+
+            if (!processStatus)
+            {
+                std::cerr << "\nFailed to write animations." << std::endl;
+            }
+        }
+        else
+        {
+            std::cout << "\nNo animations to write." << std::endl;
         }
 
     }
@@ -906,12 +928,12 @@ bool ModelConverter::loadM3D()
         }
 
         /*indices*/
-        std::vector<USHORT> indices(numTriangles*3);
+        std::vector<USHORT> indices((INT_PTR)numTriangles*3);
 
         fin >> ignore; // triangles header textd
         for (UINT i = 0; i < numTriangles; ++i)
         {
-            fin >> indices[i * 3 + 0] >> indices[i * 3 + 1] >> indices[i * 3 + 2];
+            fin >> indices[(INT_PTR)i * 3 + 0] >> indices[(INT_PTR)i * 3 + 1] >> indices[(INT_PTR)i * 3 + 2];
         }
 
 
@@ -936,6 +958,50 @@ bool ModelConverter::loadM3D()
             fin >> ignore >> boneIndexToParent[i];
         }
 
+        //animation
+
+        animationClips.resize(1);
+        animationClips[0].name = "take1";
+        fin >> ignore; // AnimationClips header text
+        for (UINT clipIndex = 0; clipIndex < numAnimationClips; ++clipIndex)
+        {
+            std::string clipName;
+            fin >> ignore >> clipName;
+            fin >> ignore; // {
+
+            animationClips[0].keyframes.resize(numBones);
+
+            for (UINT boneIndex = 0; boneIndex < numBones; ++boneIndex)
+            {
+                UINT numKeyframes = 0;
+                fin >> ignore >> ignore >> numKeyframes;
+                fin >> ignore; // {
+
+                animationClips[0].keyframes[boneIndex].resize(numKeyframes);
+
+                for (UINT i = 0; i < numKeyframes; ++i)
+                {
+                    float t = 0.0f;
+                    XMFLOAT3 p(0.0f, 0.0f, 0.0f);
+                    XMFLOAT3 s(1.0f, 1.0f, 1.0f);
+                    XMFLOAT4 q(0.0f, 0.0f, 0.0f, 1.0f);
+                    fin >> ignore >> t;
+                    fin >> ignore >> p.x >> p.y >> p.z;
+                    fin >> ignore >> s.x >> s.y >> s.z;
+                    fin >> ignore >> q.x >> q.y >> q.z >> q.w;
+
+                    animationClips[0].keyframes[boneIndex][i].timeStamp = t;
+                    animationClips[0].keyframes[boneIndex][i].translation = p;
+                    animationClips[0].keyframes[boneIndex][i].scale = s;
+                    animationClips[0].keyframes[boneIndex][i].rotationQuat = q;
+                }
+
+                fin >> ignore; // }
+            }
+            fin >> ignore; // }
+        }
+
+
         fin.close();
 
         /****/
@@ -957,7 +1023,7 @@ bool ModelConverter::loadM3D()
         rMeshes.push_back(new MeshRigged());
         rMeshes[0]->vertices.resize(numVertices);
 
-        for (int i = 0; i < numVertices; i++)
+        for (UINT i = 0; i < numVertices; i++)
         {
            rMeshes[0]->vertices[i] = skvertices[i];
         }
@@ -1709,6 +1775,10 @@ void ModelConverter::printFile(const std::string& fileName, bool verbose)
         {
             printS3D(fileName, verbose);
         }
+        else if (ext == "clp")
+        {
+            printCLP(fileName, verbose);
+        }
         else
         {
             std::cerr << "Invalid file!" << std::endl;
@@ -2089,5 +2159,178 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
         std::cout << std::endl;
 
     }
+
+}
+
+bool ModelConverter::writeCLP()
+{
+    std::cout << "\n===================================================\n\n";
+
+    for (const auto& f : animationClips)
+    {
+        /*writing to binary file .clp*/
+        startTime = std::chrono::high_resolution_clock::now();
+
+        std::ios_base::sync_with_stdio(false);
+        std::cin.tie(NULL);
+
+        std::string clipFile = f.name + ".clp";
+
+        auto fileHandle = std::fstream(clipFile.c_str(), std::ios::out | std::ios::binary);
+
+        if (!fileHandle.is_open())
+        {
+            std::cerr << "Can not write CLP file " << clipFile << "!\n" << std::endl;
+            continue;
+        }
+
+        /*header*/
+        char header[4] = { 0x63, 0x6c, 0x70, 0x66 };
+        fileHandle.write(header, 4);
+
+        int strSize = (int) f.name.size();
+        fileHandle.write(reinterpret_cast<const char*>(&strSize), sizeof(int));
+        fileHandle.write(reinterpret_cast<const char*>(&f.name[0]), strSize);
+
+        int boneSize = (int)f.keyframes.size();
+        fileHandle.write(reinterpret_cast<const char*>(&boneSize), sizeof(int));
+
+        for (int i = 0; i < f.keyframes.size(); i++)
+        {
+            int keyfrSize = (int)f.keyframes[i].size();
+            fileHandle.write(reinterpret_cast<const char*>(&keyfrSize), sizeof(int));
+
+            for (const auto& kf : f.keyframes[i])
+            {
+                fileHandle.write(reinterpret_cast<const char*>(&kf.timeStamp), sizeof(float));
+
+                fileHandle.write(reinterpret_cast<const char*>(&kf.translation.x), sizeof(float));
+                fileHandle.write(reinterpret_cast<const char*>(&kf.translation.y), sizeof(float));
+                fileHandle.write(reinterpret_cast<const char*>(&kf.translation.z), sizeof(float));
+
+                fileHandle.write(reinterpret_cast<const char*>(&kf.scale.x), sizeof(float));
+                fileHandle.write(reinterpret_cast<const char*>(&kf.scale.y), sizeof(float));
+                fileHandle.write(reinterpret_cast<const char*>(&kf.scale.z), sizeof(float));
+
+                fileHandle.write(reinterpret_cast<const char*>(&kf.rotationQuat.x), sizeof(float));
+                fileHandle.write(reinterpret_cast<const char*>(&kf.rotationQuat.y), sizeof(float));
+                fileHandle.write(reinterpret_cast<const char*>(&kf.rotationQuat.z), sizeof(float));
+                fileHandle.write(reinterpret_cast<const char*>(&kf.rotationQuat.w), sizeof(float));
+            }
+        }
+
+        fileHandle.close();
+
+        auto endTime = std::chrono::high_resolution_clock::now();
+        std::cout << "Finished writing " << clipFile << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms." << std::endl;
+        std::cout << "\n===================================================\n\n";
+    }
+
+    return true;
+}
+
+void ModelConverter::printCLP(const std::string& fileName, bool verbose)
+{
+
+    std::cout << "Printing CLP file " << fileName << "..\n" << std::endl;
+    std::cout << "\n---------------------------------------------------\n\n";
+
+    /*open file*/
+    std::streampos fileSize;
+    std::ifstream file(fileName, std::ios::binary);
+
+    /*get file size*/
+    file.seekg(0, std::ios::end);
+    fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    if (fileSize == 0 || !file.good())
+    {
+        std::cerr << "Can not open file!\n";
+        return;
+    }
+
+    /*check header*/
+    bool header = true;
+    char headerBuffer[4] = { 'c','l','p','f' };
+
+    for (int i = 0; i < 4; i++)
+    {
+        char temp;
+        file.read(&temp, sizeof(temp));
+
+        if (temp != headerBuffer[i])
+        {
+            header = false;
+            break;
+        }
+    }
+
+    if (header == false)
+    {
+        /*header incorrect*/
+        std::cerr << "File contains incorrect header!\n";
+        return;
+    }
+
+
+    int slen = 0;
+    file.read((char*)(&slen), sizeof(int));
+
+    char* animName = new char[(INT_PTR)slen + 1];
+    file.read(animName, slen);
+    animName[slen] = '\0';
+
+    std::cout << std::fixed << std::showpoint << std::setprecision(2) << "Name:\t" << animName << "\n";
+
+    UINT vNumBones = 0;
+    file.read((char*)(&vNumBones), sizeof(int));
+
+    std::cout << "Bones:\t" << vNumBones << "\n";
+
+
+    for (UINT i = 0; i < vNumBones; i++)
+    {
+        std::cout << "\n===================================================\n\n";
+
+        UINT vKeyFrames = 0;
+        file.read((char*)(&vKeyFrames), sizeof(int));
+        std::cout << "Bone " << (int)i << " has " << vKeyFrames << " key frames.\n\n";
+
+        for (UINT j = 0; j < vKeyFrames; j++)
+        {
+            if (verbose)
+            std::cout << "Bone " << i << " Keyframe #" << j << "\n";
+
+            float temp, temp2, temp3, temp4;
+            file.read((char*)(&temp), sizeof(float));
+            if(verbose)
+            std::cout << "TimePos:\t" << temp << "\n";
+
+            file.read((char*)(&temp), sizeof(float));
+            file.read((char*)(&temp2), sizeof(float));
+            file.read((char*)(&temp3), sizeof(float));
+            if (verbose)
+            std::cout << "Transl:\t" << temp << " | " << temp2 << " | " << temp3 << "\n";
+
+            file.read((char*)(&temp), sizeof(float));
+            file.read((char*)(&temp2), sizeof(float));
+            file.read((char*)(&temp3), sizeof(float));
+            if (verbose)
+            std::cout << "Scale:\t" << temp << " | " << temp2 << " | " << temp3 << "\n";
+
+            file.read((char*)(&temp), sizeof(float));
+            file.read((char*)(&temp2), sizeof(float));
+            file.read((char*)(&temp3), sizeof(float));
+            file.read((char*)(&temp4), sizeof(float));
+            if (verbose)
+            std::cout << "RotQu:\t" << temp << " | " << temp2 << " | " << temp3 << " | " << temp4 << "\n";
+            if (verbose)
+            std::cout << "\n---------------------------------------------------\n\n";
+
+        }
+    }
+
+    file.close();
 
 }

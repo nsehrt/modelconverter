@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     InitData initData;
 
     std::cout << std::setprecision(2);
-    std::cout << "ModelConverter B3D/S3D " << VERSION_MAJOR << "." << VERSION_MINOR << " (Assimp Version " << mConverter.getVersionString() << ")\n" << std::endl;
+    std::cout << "ModelConverter B3D/S3D/CLP " << VERSION_MAJOR << "." << VERSION_MINOR << " (Assimp Version " << mConverter.getVersionString() << ")\n" << std::endl;
     std::cout << "===================================================\n\n";
 
     /*help dialog*/
@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
         std::string empty;
         std::cout << "First parameter must be path to file or -h!\n";
         std::cout << "\nPossible parameters:\n";
-        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model\n-s\t- Scale the model by this factor (-s=2)\n-p\t- Prefix the output file with the entered string (-p=PRE_)\n-nt\t- Do not apply node transform\n-o\t- Print the data of a b3d or s3d file (-ov for verbose output)\n" << std::endl;
+        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model\n-s\t- Scale the model by this factor (-s=2)\n-p\t- Prefix the output file with the entered string (-p=PRE_)\n-nt\t- Do not apply node transform\n-o\t- Print the data of a b3d/s3d/clp file (-ov for verbose output)\n" << std::endl;
         std::getline(std::cin, empty);
         return 0;
     }

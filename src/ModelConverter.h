@@ -123,6 +123,20 @@ struct Subset
     UINT FaceCount = 0;
 };
 
+struct KeyFrame
+{
+    float timeStamp;
+    DirectX::XMFLOAT3 translation;
+    DirectX::XMFLOAT3 scale;
+    DirectX::XMFLOAT4 rotationQuat;
+};
+
+struct Animation
+{
+    std::string name;
+    std::vector<std::vector<KeyFrame>> keyframes;
+};
+
 class ModelConverter
 {
 public:
@@ -144,6 +158,9 @@ public:
     void printB3D(const std::string& fileName, bool verbose = true);
     void printS3D(const std::string& fileName, bool verbose = true);
 
+    bool writeCLP();
+    void printCLP(const std::string& fileName, bool verbose = true);
+
     std::string getVersionString() const
     {
         std::stringstream res;
@@ -163,6 +180,7 @@ private:
     InitData iData;
     std::chrono::steady_clock::time_point startTime;
 
+    std::vector<Animation> animationClips;
 
     int findParentBone(std::vector<Bone>& bones, aiNode* node)
     {
