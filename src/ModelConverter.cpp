@@ -120,11 +120,13 @@ bool ModelConverter::load(InitData& initData)
 
             if (!processStatus)
             {
+                std::cout << "\n===================================================\n";
                 std::cerr << "\nFailed to write animations." << std::endl;
             }
         }
         else
         {
+            std::cout << "\n===================================================\n";
             std::cout << "\nNo animations to write." << std::endl;
         }
 
@@ -933,7 +935,7 @@ bool ModelConverter::loadM3D()
         fin >> ignore; // triangles header textd
         for (UINT i = 0; i < numTriangles; ++i)
         {
-            fin >> indices[(INT_PTR)i * 3 + 0] >> indices[(INT_PTR)i * 3 + 1] >> indices[(INT_PTR)i * 3 + 2];
+            fin >> indices[(INT_PTR)i * 3 + 0] >> indices[(INT_PTR)i * 3 + 2] >> indices[(INT_PTR)i * 3 + 1];
         }
 
 
