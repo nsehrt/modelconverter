@@ -508,23 +508,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     }
 
 
-    std::sort(bones.begin(), bones.end(), [](const Bone& a, const Bone& b)->bool
-              {
-                  if (a.ParentIndex == b.ParentIndex)
-                  {
-                      return a.Index < b.Index;
-                  }
-                  else
-                  {
-                      return a.ParentIndex < b.ParentIndex;
-                  }
-                  
-              });
-
-    for (int i = 0; i < bones.size(); i++)
-    {
-        bones[i].Index = i;
-    }
+    /*FIX THIS*/
 
     for (int i = 0; i < bones.size(); i++)
     {
@@ -536,28 +520,65 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     //    std::cout << "Bone " << b.Index << " (" << b.Name << ") is a child of " << b.ParentIndex << " (" << (b.ParentIndex > -1 ? bones[b.ParentIndex].Name : "-1") << ")" << std::endl;
     //}
 
-    std::vector<int> testHierarchy;
+    bHierarchy.resize(bones.size());
 
-    testHierarchy.push_back(bones[0].Index);
+    int rootFound = 0;
 
-    for (int i = 1; i < bones.size(); i++)
+    for (const auto& b : bones)
     {
-        bool found = false;
-
-        for (int j = 0; j < testHierarchy.size(); j++)
+        if (b.ParentIndex == -1)
         {
-            if (bones[i].ParentIndex == testHierarchy[j])
-                found = true;
+            bHierarchy[0] = std::pair<int, int>(b.Index, b.ParentIndex);
+            rootFound++;
+        }
+    }
+
+    if (rootFound != 1)
+    {
+        std::cerr << "Can not find root bone or more than one root bone!" << std::endl;
+        return false;
+    }
+
+    int bonesUsed = 1;
+
+    while (bonesUsed != bones.size())
+    {
+
+        for (auto& b : bones)
+        {
+            if (!b.used)
+            {
+                if (isInHierarchy(b.ParentIndex))
+                {
+                    bHierarchy[bonesUsed] = std::pair<int, int>(b.Index, b.ParentIndex);
+                    b.used = true;
+                    bonesUsed++;
+                }
+
+            }
         }
 
-        if (!found)
+    }
+
+    //for (const auto& v : bHierarchy)
+    //{
+    //    std::cout << v.first << " -> " << v.second << std::endl;
+    //}
+
+    std::vector<int> testHierarchy;
+    testHierarchy.push_back(-1);
+
+    for (const auto& v : bHierarchy)
+    {
+
+        if (isInArray(testHierarchy, v.second))
         {
-            std::cout << "Failed bone hierarchy test!\n\n";
-            return false;
+            testHierarchy.push_back(v.first);
         }
         else
         {
-            testHierarchy.push_back(bones[i].Index);
+            std::cerr << "Bone hierarchy error!\n";
+            return false;
         }
 
     }
@@ -566,6 +587,17 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
     std::cout << "\n===================================================\n";
 
+    /*animationen laden*/
+    animationClips.resize(scene->mNumAnimations);
+
+    for (UINT k = 0; k < scene->mNumAnimations; k++)
+    {
+
+
+
+    }
+
+    /******************/
     estimatedFileSize += (int)bones.size() * 75;
 
     std::cout << std::endl;
@@ -1203,10 +1235,10 @@ bool ModelConverter::writeS3D()
     }
 
     /*bone hierarchy*/
-    for (const auto& b : bones)
+    for (const auto& b : bHierarchy)
     {
-        fileHandle.write(reinterpret_cast<const char*>(&b.Index), sizeof(int));
-        fileHandle.write(reinterpret_cast<const char*>(&b.ParentIndex), sizeof(int));
+        fileHandle.write(reinterpret_cast<const char*>(&b.first), sizeof(int));
+        fileHandle.write(reinterpret_cast<const char*>(&b.second), sizeof(int));
     }
 
     /*number of meshes*/
@@ -1597,12 +1629,12 @@ bool ModelConverter::verifyS3D()
     UINT timesFailed = 0;
     for (char i = 0; i < vNumBones; i++)
     {
-        if (boneHierarchyCheck[i].Index != bones[i].Index)
+        if (boneHierarchyCheck[i].Index != bHierarchy[i].first)
         {
             timesFailed++;
         }
 
-        if (boneHierarchyCheck[i].ParentIndex != bones[i].ParentIndex)
+        if (boneHierarchyCheck[i].ParentIndex != bHierarchy[i].second)
         {
             timesFailed++;
         }

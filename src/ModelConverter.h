@@ -90,11 +90,12 @@ public:
 struct Bone
 {
     std::string Name;
-    aiBone* AIBone;
     int Index = -1;
+    aiBone* AIBone;
     std::string ParentName;
     int ParentIndex = -1;
     DirectX::XMFLOAT4X4 nodeTransform;
+    bool used = false;
 };
 
 struct InitData
@@ -173,6 +174,7 @@ private:
     std::vector<Mesh*> bMeshes, bMeshesV;
     std::vector<MeshRigged*> rMeshes, rMeshesV;
     std::vector<Bone> bones;
+    std::vector<std::pair<int, int>> bHierarchy;
     UINT estimatedFileSize = 0;
 
     std::string baseFileName = "";
@@ -229,6 +231,31 @@ private:
         }
 
         return exists;
+    }
+
+    bool isInHierarchy(int index)
+    {
+        for (const auto& v : bHierarchy)
+        {
+            if (v.first == index)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool isInArray(std::vector<int>& arr, int index)
+    {
+        if (index == -1) return true;
+
+        for (const auto& v : arr)
+        {
+            if (v == index) return true;
+        }
+
+
+        return false;
     }
 
     void printNodes(aiNode* node, int depth = 0)
