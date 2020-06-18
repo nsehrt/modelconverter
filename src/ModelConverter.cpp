@@ -588,13 +588,31 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     std::cout << "\n===================================================\n";
 
     /*animationen laden*/
+
+
     animationClips.resize(scene->mNumAnimations);
 
+    std::cout << "\n";
     for (UINT k = 0; k < scene->mNumAnimations; k++)
     {
 
+        auto anim = scene->mAnimations[k];
+        std::cout << "Animation " << anim->mName.C_Str() << ": " << anim->mDuration / anim->mTicksPerSecond << "s " << anim->mNumChannels << " channels\n";
 
+        animationClips[k].name = anim->mName.C_Str();
 
+        for (UINT p = 0; p < anim->mNumChannels;p++)
+        {
+
+            auto channel = anim->mChannels[p];
+            std::cout << channel->mNumPositionKeys << " POS\n";
+
+            aiVectorKey a = channel->mPositionKeys[0];
+            std::cout << "TIME " << a.mTime / anim->mTicksPerSecond << "\n";
+
+        }
+
+        std::cout << "\n---------------------------------------------------\n\n";
     }
 
     /******************/
