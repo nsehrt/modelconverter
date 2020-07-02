@@ -1,5 +1,5 @@
 #pragma once
-
+#define NOMINMAX
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -126,6 +126,14 @@ struct Subset
 
 struct KeyFrame
 {
+    KeyFrame()
+    {
+        timeStamp = 0.0f;
+        translation = { 0.0f,0.0f,0.0f };
+        scale = { 1.0f,1.0f,1.0f };
+        XMStoreFloat4(&rotationQuat, DirectX::XMQuaternionIdentity());
+    }
+
     float timeStamp;
     DirectX::XMFLOAT3 translation;
     DirectX::XMFLOAT3 scale;
@@ -271,6 +279,33 @@ private:
         {
             printNodes(node->mChildren[i], depth + 1);
         }
+    }
+
+
+    void printAIMatrix(const aiMatrix4x4& m)
+    {
+        aiVector3D scale, translation, rotation;
+
+        m.Decompose(scale, rotation, translation);
+
+        std::cout << std::fixed << "T: " << translation.x << " | " << translation.y << " | " << translation.z << "\n";
+        std::cout << std::fixed << "R: " << DirectX::XMConvertToDegrees(rotation.x) << " | " << DirectX::XMConvertToDegrees(rotation.y) << " | " << DirectX::XMConvertToDegrees(rotation.z) << "\n";
+        std::cout << std::fixed << "S: " << scale.x << " | " << scale.y << " | " << scale.z << "\n";
+    }
+
+    aiMatrix4x4 getGlobalTransform(aiNode* node)
+    {
+        aiMatrix4x4 result = node->mTransformation;
+
+        aiNode* tNode = node;
+
+        while (tNode->mParent != nullptr)
+        {
+            tNode = tNode->mParent;
+            result *= tNode->mTransformation;
+        }
+
+        return result;
     }
 
     void transformXM(DirectX::XMFLOAT3& xmf, DirectX::XMMATRIX trfMatrix)

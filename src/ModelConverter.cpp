@@ -1,7 +1,7 @@
 #pragma comment(lib, "assimp-vc142-mt.lib")
 
 #include "ModelConverter.h"
-
+#include <cmath>
 
 using namespace DirectX;
 
@@ -222,10 +222,12 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
         for (UINT v = 0; v < mesh->mNumVertices; v++)
         {
-
+            aiVector3D tangU;
             aiVector3D pos = mesh->mVertices[v];
             aiVector3D norm = mesh->mNormals[v];
-            aiVector3D tangU = mesh->mTangents[v];
+            if(mesh->HasTangentsAndBitangents())
+                tangU = mesh->mTangents[v];
+
             aiVector3D tex = mesh->mTextureCoords[0][v];
 
             /*convert to vertex data format*/
@@ -248,8 +250,8 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
         if (trfNode)
         {
-            aiMatrix4x4 matrix = trfNode->mTransformation.Transpose();
-            
+            //aiMatrix4x4 matrix = trfNode->mTransformation.Transpose();
+            aiMatrix4x4 matrix = getGlobalTransform(trfNode);
 
             bMeshes[j]->nodeTransform._11 = matrix.a1;
             bMeshes[j]->nodeTransform._12 = matrix.a2;
@@ -521,7 +523,8 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     //}
 
     bHierarchy.resize(bones.size());
-
+     
+    std::string rootBoneName;
     int rootFound = 0;
 
     for (const auto& b : bones)
@@ -529,6 +532,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
         if (b.ParentIndex == -1)
         {
             bHierarchy[0] = std::pair<int, int>(b.Index, b.ParentIndex);
+            rootBoneName = b.AIBone->mName.C_Str();
             rootFound++;
         }
     }
@@ -589,6 +593,17 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
     /*animationen laden*/
 
+    /*figure out root transform*/
+    //auto rNode = scene->mRootNode->FindNode(rootBoneName.c_str());
+
+    ///*load transformation from node*/
+    //aiNode* trfNode = scene->mRootNode->FindNode("Torus");
+
+    //aiMatrix4x4 matrix = getGlobalTransform(trfNode);
+
+    aiMatrix4x4 animTransform;// rNode->mTransformation * rNode->mParent->mTransformation;
+
+    printAIMatrix(animTransform);
 
     animationClips.resize(scene->mNumAnimations);
 
@@ -597,19 +612,87 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     {
 
         auto anim = scene->mAnimations[k];
-        std::cout << "Animation " << anim->mName.C_Str() << ": " << anim->mDuration / anim->mTicksPerSecond << "s " << anim->mNumChannels << " channels\n";
+        float animTicks = (float)anim->mTicksPerSecond;
+
+        std::cout << "Animation " << anim->mName.C_Str() << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << ") " << anim->mNumChannels << " channels\n";
 
         animationClips[k].name = anim->mName.C_Str();
+        /*get rid of | character*/
+        std::replace(animationClips[k].name.begin(), animationClips[k].name.end(), '|', '_');
+        animationClips[k].keyframes.resize(bones.size());
+
+
+        for (size_t x = 0; x < animationClips[k].keyframes.size(); x++)
+        {
+            animationClips[k].keyframes[x].push_back(KeyFrame());
+        }
 
         for (UINT p = 0; p < anim->mNumChannels;p++)
         {
-
             auto channel = anim->mChannels[p];
-            std::cout << channel->mNumPositionKeys << " POS\n";
+            
+            /*figure out how many keyframes*/
+            int numKeyFrames = std::max(channel->mNumPositionKeys, channel->mNumRotationKeys);
+            int nodeIndex = findIndexInBones(bones, channel->mNodeName.C_Str());
+            if (nodeIndex < 0) continue;
 
-            aiVectorKey a = channel->mPositionKeys[0];
-            std::cout << "TIME " << a.mTime / anim->mTicksPerSecond << "\n";
+            animationClips[k].keyframes[nodeIndex].resize(numKeyFrames);
 
+            std::cout << "Affect Node " << channel->mNodeName.C_Str() << ".\n";
+
+            for (int m = 0; m < numKeyFrames; m++)
+            {
+                KeyFrame keyFrame;
+
+
+                aiMatrix4x4 keyMatrix = aiMatrix4x4({ 1,1,1 }, channel->mRotationKeys[m].mValue, channel->mPositionKeys[m].mValue);
+                keyMatrix *= animTransform;
+
+                aiVector3D scale, translation;
+                aiQuaternion rotation;
+
+                keyMatrix.Decompose(scale, rotation, translation);
+
+
+                keyFrame.timeStamp = (float) channel->mRotationKeys[m].mTime / animTicks;
+                
+                keyFrame.rotationQuat = { rotation.x,
+                                            rotation.y,
+                                            rotation.z,
+                                            rotation.w };
+
+                if (m <= (int)channel->mNumPositionKeys)
+                {
+                    keyFrame.timeStamp = (float) channel->mPositionKeys[m].mTime / animTicks;
+                    keyFrame.translation = { translation.x,
+                        translation.y,
+                        translation.z };
+                }
+
+                animationClips[k].keyframes[nodeIndex][m] = keyFrame;
+
+            }
+
+            
+
+            //std::cout << "Translation:\n";
+            //for (UINT m = 0; m < channel->mNumPositionKeys; m++)
+            //{
+            //    std::cout << channel->mPositionKeys[m].mTime << ": " << channel->mPositionKeys[m].mValue.x <<
+            //        " | " << channel->mPositionKeys[m].mValue.y << " | " << channel->mPositionKeys[m].mValue.z << "\n";
+            //}
+
+            //std::cout << "\nRotation:\n";
+            //for (UINT m = 0; m < channel->mNumRotationKeys; m++)
+            //{
+            //    std::cout << channel->mRotationKeys[m].mTime << ": " << channel->mRotationKeys[m].mValue.x <<
+            //        " | " << channel->mRotationKeys[m].mValue.y << " | " << channel->mRotationKeys[m].mValue.z << " | " << channel->mRotationKeys[m].mValue.w << "\n";
+            //}
+
+
+            
+
+            std::cout << "\n---------------------------------------------------\n\n";
         }
 
         std::cout << "\n---------------------------------------------------\n\n";
@@ -682,8 +765,9 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
         if (trfNode)
         {
-            aiMatrix4x4 matrix = trfNode->mTransformation.Transpose();
+            //aiMatrix4x4 matrix = trfNode->mTransformation; /*TRANSPOSE OR NOT*/
 
+            aiMatrix4x4 matrix = getGlobalTransform(trfNode);
 
             rMeshes[j]->nodeTransform._11 = matrix.a1;
             rMeshes[j]->nodeTransform._12 = matrix.a2;
@@ -2105,7 +2189,7 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
 
     for (int i = 0; i < boneHierarchyCheck.size(); i++)
     {
-        std::cout << boneNames[i] << " f(" << i << ") is child of bone " << (boneHierarchyCheck[i] >= 0 ? boneNames[boneHierarchyCheck[i]] : "-1") << " (" << boneHierarchyCheck[i] << ")" << std::endl;
+        std::cout << boneNames[i] << " (" << i << ") is child of bone " << (boneHierarchyCheck[i] >= 0 ? boneNames[boneHierarchyCheck[i]] : "-1") << " (" << boneHierarchyCheck[i] << ")" << std::endl;
     }
 
 
