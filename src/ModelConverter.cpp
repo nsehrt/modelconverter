@@ -250,7 +250,6 @@ bool ModelConverter::loadStatic(const aiScene* scene)
 
         if (trfNode)
         {
-            //aiMatrix4x4 matrix = trfNode->mTransformation.Transpose();
             aiMatrix4x4 matrix = getGlobalTransform(trfNode);
 
             bMeshes[j]->nodeTransform._11 = matrix.a1;
@@ -594,14 +593,14 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     /*animationen laden*/
 
     /*figure out root transform*/
-    //auto rNode = scene->mRootNode->FindNode(rootBoneName.c_str());
+    auto rNode = scene->mRootNode->FindNode(rootBoneName.c_str());
 
     ///*load transformation from node*/
     //aiNode* trfNode = scene->mRootNode->FindNode("Torus");
 
     //aiMatrix4x4 matrix = getGlobalTransform(trfNode);
 
-    aiMatrix4x4 animTransform;// rNode->mTransformation * rNode->mParent->mTransformation;
+    aiMatrix4x4 animTransform; //= rNode->mTransformation * rNode->mParent->mTransformation;
 
     printAIMatrix(animTransform);
 
@@ -765,7 +764,6 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
         if (trfNode)
         {
-            //aiMatrix4x4 matrix = trfNode->mTransformation; /*TRANSPOSE OR NOT*/
 
             aiMatrix4x4 matrix = getGlobalTransform(trfNode);
 
@@ -1306,12 +1304,13 @@ bool ModelConverter::writeS3D()
         char boneID = (char)b.Index;
         fileHandle.write(reinterpret_cast<const char*>(&boneID), sizeof(char));
 
+        /*bone name*/
         short boneStrSize = (short)b.Name.size();
         fileHandle.write(reinterpret_cast<const char*>(&boneStrSize), sizeof(boneStrSize));
         fileHandle.write(reinterpret_cast<const char*>(&b.Name[0]), boneStrSize);
 
         /*bone offset matrix*/
-        aiMatrix4x4 offsetMatrix = b.AIBone->mOffsetMatrix;
+        aiMatrix4x4 offsetMatrix = b.AIBone->mOffsetMatrix.Transpose(); /*transpose because assimp uses opengl style matrices*/
 
         fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a1), sizeof(float));
         fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a2), sizeof(float));
