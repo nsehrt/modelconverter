@@ -183,6 +183,8 @@ private:
     std::vector<MeshRigged*> rMeshes, rMeshesV;
     std::vector<Bone> bones;
     std::vector<std::pair<int, int>> bHierarchy;
+    aiMatrix4x4 globalArmatureInverse;
+
     UINT estimatedFileSize = 0;
 
     std::string baseFileName = "";
@@ -285,11 +287,14 @@ private:
     void printAIMatrix(const aiMatrix4x4& m)
     {
         aiVector3D scale, translation, rotation;
+        aiQuaternion quat;
 
         m.Decompose(scale, rotation, translation);
+        m.Decompose(scale, quat, translation);
 
         std::cout << std::fixed << "T: " << translation.x << " | " << translation.y << " | " << translation.z << "\n";
         std::cout << std::fixed << "R: " << DirectX::XMConvertToDegrees(rotation.x) << " | " << DirectX::XMConvertToDegrees(rotation.y) << " | " << DirectX::XMConvertToDegrees(rotation.z) << "\n";
+        std::cout << std::fixed << "Q: " << quat.x << " | " << quat.y << " | " << quat.z << " | " << quat.w << "\n";
         std::cout << std::fixed << "S: " << scale.x << " | " << scale.y << " | " << scale.z << "\n";
     }
 
@@ -298,7 +303,7 @@ private:
         aiMatrix4x4 result = node->mTransformation;
 
         aiNode* tNode = node;
-
+        
         while (tNode->mParent != nullptr)
         {
             tNode = tNode->mParent;

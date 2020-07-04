@@ -45,14 +45,14 @@ int main(int argc, char* argv[])
     initData.FileName = argv[1];
 
 #ifdef _DEBUG
-    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\basic.fbx";
+    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\basic_s.fbx";
 #endif
 
 
     for (int i = 2; i < argc; i++)
     {
         std::vector<std::string> sVec = split(argv[i], '=');
-
+        //sVec[0] = "-ov"; //!!!
         if (sVec.size() == 1)
         {
             if (sVec[0] == "-nc")

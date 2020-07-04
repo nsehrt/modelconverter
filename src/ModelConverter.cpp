@@ -64,7 +64,7 @@ bool ModelConverter::load(InitData& initData)
 
 
     /*the normal import*/
-    const aiScene* loadedScene = importer.ReadFile(initData.FileName, aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_ConvertToLeftHanded | aiProcess_GenNormals | aiProcess_CalcTangentSpace);
+    const aiScene* loadedScene = importer.ReadFile(initData.FileName, aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_ConvertToLeftHanded | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | );
 
     if (!loadedScene)
     {
@@ -509,20 +509,15 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     }
 
 
-    /*FIX THIS*/
-
     for (int i = 0; i < bones.size(); i++)
     {
         bones[i].ParentIndex = findIndexInBones(bones, bones[i].ParentName);
     }
 
-    //for (const auto& b : bones)
-    //{
-    //    std::cout << "Bone " << b.Index << " (" << b.Name << ") is a child of " << b.ParentIndex << " (" << (b.ParentIndex > -1 ? bones[b.ParentIndex].Name : "-1") << ")" << std::endl;
-    //}
-
     bHierarchy.resize(bones.size());
      
+
+    /*find root bone*/
     std::string rootBoneName;
     int rootFound = 0;
 
@@ -563,11 +558,6 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
     }
 
-    //for (const auto& v : bHierarchy)
-    //{
-    //    std::cout << v.first << " -> " << v.second << std::endl;
-    //}
-
     std::vector<int> testHierarchy;
     testHierarchy.push_back(-1);
 
@@ -588,32 +578,40 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
     std::cout << "Bone hierarchy test successful.\n";
 
-    std::cout << "\n===================================================\n";
+    std::cout << "\n===================================================\n\n";
 
     /*animationen laden*/
 
     /*figure out root transform*/
     auto rNode = scene->mRootNode->FindNode(rootBoneName.c_str());
 
-    ///*load transformation from node*/
-    //aiNode* trfNode = scene->mRootNode->FindNode("Torus");
+    /*load global armature inverse*/
+    globalArmatureInverse = getGlobalTransform(rNode->mParent).Inverse();
+ 
+    aiVector3D sc, tr;
+    aiQuaternion ro, ron;
+    globalArmatureInverse.Decompose(sc, ro, tr);
+    
+    ron = ro;
+    ron.z *= -1;
 
-    //aiMatrix4x4 matrix = getGlobalTransform(trfNode);
+    globalArmatureInverse = aiMatrix4x4(sc, ron, tr);
 
-    aiMatrix4x4 animTransform; //= rNode->mTransformation * rNode->mParent->mTransformation;
+    std::cout << "Armature global matrix:\n";
+    printAIMatrix(globalArmatureInverse);
+    std::cout << "\n===================================================\n\n";
 
-    printAIMatrix(animTransform);
 
     animationClips.resize(scene->mNumAnimations);
-
     std::cout << "\n";
+
     for (UINT k = 0; k < scene->mNumAnimations; k++)
     {
 
         auto anim = scene->mAnimations[k];
         float animTicks = (float)anim->mTicksPerSecond;
 
-        std::cout << "Animation " << anim->mName.C_Str() << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << ") " << anim->mNumChannels << " channels\n";
+        std::cout << "Animation " << anim->mName.C_Str() << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << " tick rate) has " << anim->mNumChannels << " channels.\n";
 
         animationClips[k].name = anim->mName.C_Str();
         /*get rid of | character*/
@@ -637,15 +635,12 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
             animationClips[k].keyframes[nodeIndex].resize(numKeyFrames);
 
-            std::cout << "Affect Node " << channel->mNodeName.C_Str() << ".\n";
-
             for (int m = 0; m < numKeyFrames; m++)
             {
                 KeyFrame keyFrame;
 
 
                 aiMatrix4x4 keyMatrix = aiMatrix4x4({ 1,1,1 }, channel->mRotationKeys[m].mValue, channel->mPositionKeys[m].mValue);
-                keyMatrix *= animTransform;
 
                 aiVector3D scale, translation;
                 aiQuaternion rotation;
@@ -672,26 +667,6 @@ bool ModelConverter::loadRigged(const aiScene* scene)
 
             }
 
-            
-
-            //std::cout << "Translation:\n";
-            //for (UINT m = 0; m < channel->mNumPositionKeys; m++)
-            //{
-            //    std::cout << channel->mPositionKeys[m].mTime << ": " << channel->mPositionKeys[m].mValue.x <<
-            //        " | " << channel->mPositionKeys[m].mValue.y << " | " << channel->mPositionKeys[m].mValue.z << "\n";
-            //}
-
-            //std::cout << "\nRotation:\n";
-            //for (UINT m = 0; m < channel->mNumRotationKeys; m++)
-            //{
-            //    std::cout << channel->mRotationKeys[m].mTime << ": " << channel->mRotationKeys[m].mValue.x <<
-            //        " | " << channel->mRotationKeys[m].mValue.y << " | " << channel->mRotationKeys[m].mValue.z << " | " << channel->mRotationKeys[m].mValue.w << "\n";
-            //}
-
-
-            
-
-            std::cout << "\n---------------------------------------------------\n\n";
         }
 
         std::cout << "\n---------------------------------------------------\n\n";
@@ -1294,6 +1269,30 @@ bool ModelConverter::writeS3D()
     char header[4] = { 0x73, 0x33, 0x64, 0x66 };
     fileHandle.write(header, 4);
 
+    /*global armature inverse*/
+    auto wMatrix = globalArmatureInverse;
+
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.a1), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.a2), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.a3), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.a4), sizeof(float));
+
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.b1), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.b2), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.b3), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.b4), sizeof(float));
+
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.c1), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.c2), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.c3), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.c4), sizeof(float));
+
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.d1), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.d2), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.d3), sizeof(float));
+    fileHandle.write(reinterpret_cast<const char*>(&wMatrix.d4), sizeof(float));
+
+
     /*number of bones*/
     char boneSize = (char)bones.size();
     fileHandle.write(reinterpret_cast<const char*>(&boneSize), sizeof(char));
@@ -1648,6 +1647,13 @@ bool ModelConverter::verifyS3D()
         std::cout << "ok\n";
     }
 
+    /*armature global inverse*/
+    char* voidPtr = new char[64];
+
+    vFile.read(voidPtr, sizeof(float) * 16);
+
+    std::cout << "armature...\tok\n";
+
     /*num bones*/
     std::cout << "num bones...\t";
 
@@ -1668,7 +1674,7 @@ bool ModelConverter::verifyS3D()
 
     std::vector<int> vBoneID(vNumBones);
     std::vector<std::string> vBoneName(vNumBones);
-    char* voidPtr = new char[64];
+    
 
     for (char i = 0; i < vNumBones; i++)
     {
@@ -2108,6 +2114,39 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
         return;
     }
 
+    /*armature global inverse*/
+    aiMatrix4x4 mArmature;
+
+    /*matrix*/
+    file.read((char*)&mArmature.a1, sizeof(float));
+    file.read((char*)&mArmature.a2, sizeof(float));
+    file.read((char*)&mArmature.a3, sizeof(float));
+    file.read((char*)&mArmature.a4, sizeof(float));
+
+    file.read((char*)&mArmature.b1, sizeof(float));
+    file.read((char*)&mArmature.b2, sizeof(float));
+    file.read((char*)&mArmature.b3, sizeof(float));
+    file.read((char*)&mArmature.b4, sizeof(float));
+
+    file.read((char*)&mArmature.c1, sizeof(float));
+    file.read((char*)&mArmature.c2, sizeof(float));
+    file.read((char*)&mArmature.c3, sizeof(float));
+    file.read((char*)&mArmature.c4, sizeof(float));
+
+    file.read((char*)&mArmature.d1, sizeof(float));
+    file.read((char*)&mArmature.d2, sizeof(float));
+    file.read((char*)&mArmature.d3, sizeof(float));
+    file.read((char*)&mArmature.d4, sizeof(float));
+
+    if (verbose)
+    {
+        std::cout << "Global armature inverse transform:\n";
+        printAIMatrix(mArmature);
+    }
+
+    std::cout << "\n---------------------------------------------------\n\n";
+
+    /*num bones*/
     char vNumBones = 0;
     file.read((char*)(&vNumBones), sizeof(char));
 
@@ -2358,7 +2397,7 @@ bool ModelConverter::writeCLP()
 
         auto endTime = std::chrono::high_resolution_clock::now();
         std::cout << "Finished writing " << clipFile << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms." << std::endl;
-        std::cout << "\n===================================================\n\n";
+        std::cout << "\n---------------------------------------------------\n\n";
     }
 
     return true;
