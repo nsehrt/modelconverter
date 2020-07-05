@@ -1,26 +1,11 @@
-#pragma comment(lib, "assimp-vc142-mt.lib")
-
-#include "ModelConverter.h"
+#include "modelconverter.h"
 
 const int VERSION_MAJOR = 0;
 const int VERSION_MINOR = 8;
 
-std::vector<std::string> split(const std::string& s, char delim)
-{
-    std::vector<std::string> result;
-    std::stringstream ss(s);
-    std::string item;
-
-    while (getline(ss, item, delim))
-    {
-        result.push_back(item);
-    }
-
-    return result;
-}
-
 int main(int argc, char* argv[])
 {
+
     ModelConverter mConverter;
     InitData initData;
 
@@ -34,20 +19,18 @@ int main(int argc, char* argv[])
         std::string empty;
         std::cout << "First parameter must be path to file or -h!\n";
         std::cout << "\nPossible parameters:\n";
-        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model\n-s\t- Scale the model by this factor (-s=2)\n-p\t- Prefix the output file with the entered string (-p=PRE_)\n-nt\t- Do not apply node transform\n-o\t- Print the data of a b3d/s3d/clp file (-ov for verbose output)\n" << std::endl;
+        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model\n-s\t- Scale the model by this factor (-s=2)\n-p\t- Prefix the output file with the entered string (-p=PRE_)\n-o\t- Print the data of a b3d/s3d/clp file (-ov for verbose output)\n" << std::endl;
         std::getline(std::cin, empty);
         return 0;
     }
 
 
     /*command line parameter*/
-
-    initData.FileName = argv[1];
+    initData.fileName = argv[1];
 
 #ifdef _DEBUG
-    initData.FileName = "C:\\Users\\n_seh\\Desktop\\blender\\geo2.dae";
+    initData.fileName = "C:\\Users\\n_seh\\Desktop\\blender\\geo2.dae";
 #endif
-
 
     for (int i = 2; i < argc; i++)
     {
@@ -57,20 +40,16 @@ int main(int argc, char* argv[])
         {
             if (sVec[0] == "-nc")
             {
-                initData.CenterEnabled = 0;
-            }
-            else if (sVec[0] == "-nt")
-            {
-                initData.TransformApply = 0;
+                initData.centerEnabled = 0;
             }
             else if (sVec[0] == "-o")
             {
-                mConverter.printFile(initData.FileName,false);
+                mConverter.printFile(initData.fileName, false);
                 return 0;
             }
             else if (sVec[0] == "-ov")
             {
-                mConverter.printFile(initData.FileName, true);
+                mConverter.printFile(initData.fileName, true);
                 return 0;
             }
             else
@@ -83,15 +62,11 @@ int main(int argc, char* argv[])
         {
             if (sVec[0] == "-s")
             {
-                initData.ScaleFactor = (float)atof(sVec[1].c_str());
+                initData.scaleFactor = (float)atof(sVec[1].c_str());
             }
             else if (sVec[0] == "-p")
             {
-                initData.Prefix = sVec[1];
-            }
-            else if (sVec[0] == "-rx")
-            {
-                initData.AdditionalRotationX = (int)atoi(sVec[1].c_str());
+                initData.prefix = sVec[1];
             }
             else
             {
@@ -115,6 +90,8 @@ int main(int argc, char* argv[])
     }
 
     std::cout << "\n===================================================\n";
+
+
 
     return 0;
 }

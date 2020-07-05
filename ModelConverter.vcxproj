@@ -20,10 +20,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\ModelConverter.cpp" />
+    <ClCompile Include="src\modelconverter.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\ModelConverter.h" />
+    <ClInclude Include="src\data.h" />
+    <ClInclude Include="src\modelconverter.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
