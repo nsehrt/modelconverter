@@ -83,7 +83,7 @@ public:
     std::vector<SkinnedVertex> vertices;
     std::vector<uint32_t> indices;
     DirectX::XMFLOAT4X4 nodeTransform;
-    DirectX::XMFLOAT4X4 nodeRotation;
+    //DirectX::XMFLOAT4X4 nodeRotation;
     std::string materialName;
 };
 

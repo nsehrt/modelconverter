@@ -5,10 +5,9 @@
 
 using namespace DirectX;
 
-
-
 bool ModelConverter::load(InitData& initData)
 {
+
     startTime = std::chrono::high_resolution_clock::now();
 
     char id[1024];
@@ -64,7 +63,7 @@ bool ModelConverter::load(InitData& initData)
 
 
     /*the normal import*/
-    const aiScene* loadedScene = importer.ReadFile(initData.FileName, aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_ConvertToLeftHanded | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices | );
+    const aiScene* loadedScene = importer.ReadFile(initData.FileName, aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_ConvertToLeftHanded | aiProcess_GenSmoothNormals | aiProcess_CalcTangentSpace | aiProcess_JoinIdenticalVertices );
 
     if (!loadedScene)
     {
@@ -397,11 +396,12 @@ bool ModelConverter::loadStatic(const aiScene* scene)
                 XMFLOAT3 tVec = { v.TangentU.x, v.TangentU.y, v.TangentU.z };
 
                 XMMATRIX trf = XMLoadFloat4x4(&m->nodeTransform);
-                XMMATRIX rf = XMLoadFloat4x4(&m->nodeRotation);
+                trf = XMMatrixInverse(&XMMatrixDeterminant(trf), trf);
+                //XMMATRIX rf = XMLoadFloat4x4(&m->nodeRotation);
 
                 transformXM(vec, trf);
-                transformXM(nVec, rf);
-                transformXM(tVec, rf);
+                transformXM(nVec, trf);
+                transformXM(tVec, trf);
 
                 v.Position = { vec.x, vec.y, vec.z };
                 v.Normal = { nVec.x, nVec.y, nVec.z };
@@ -593,7 +593,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
     globalArmatureInverse.Decompose(sc, ro, tr);
     
     ron = ro;
-    ron.z *= -1;
+    //ron.z *= -1;
 
     globalArmatureInverse = aiMatrix4x4(sc, ron, tr);
 
@@ -718,7 +718,11 @@ bool ModelConverter::loadRigged(const aiScene* scene)
                 tangU = mesh->mTangents[v];
             }
             
-            tex = mesh->mTextureCoords[0][v];
+            if (mesh->HasTextureCoords(0) != 0)
+            {
+                tex = mesh->mTextureCoords[0][v];
+            }
+            
             
             /*convert to vertex data format*/
             rMeshes[j]->vertices.push_back(SkinnedVertex(float3(pos.x, pos.y, pos.z),
@@ -798,12 +802,12 @@ bool ModelConverter::loadRigged(const aiScene* scene)
                 std::cout << "Warning: Scaling not equal 1!\n";
             }
 
-            if (iData.CenterEnabled)
-            {
-                tPos.x = 0;
-                tPos.y = 0;
-                tPos.z = 0;
-            }
+            //if (iData.CenterEnabled)
+            //{
+            //    tPos.x = 0;
+            //    tPos.y = 0;
+            //    tPos.z = 0;
+            //}
 
             if (iData.AdditionalRotationX != 0)
             {
@@ -823,7 +827,7 @@ bool ModelConverter::loadRigged(const aiScene* scene)
             vPos = XMLoadFloat3(&tPos);
 
             XMStoreFloat4x4(&rMeshes[j]->nodeTransform, XMMatrixScalingFromVector(vScale) * XMMatrixRotationQuaternion(vRot) * XMMatrixTranslationFromVector(vPos));
-            XMStoreFloat4x4(&rMeshes[j]->nodeRotation, XMMatrixRotationQuaternion(vRot));
+            //XMStoreFloat4x4(&rMeshes[j]->nodeRotation, XMMatrixRotationQuaternion(vRot));
 
         }
 
@@ -903,12 +907,12 @@ bool ModelConverter::loadRigged(const aiScene* scene)
         for (auto& v : m->vertices)
         {
 
-            if (iData.CenterEnabled)
-            {
-                v.Position.x -= center.x;
-                v.Position.y -= center.y;
-                v.Position.z -= center.z;
-            }
+            //if (iData.CenterEnabled)
+            //{
+            //    v.Position.x -= center.x;
+            //    v.Position.y -= center.y;
+            //    v.Position.z -= center.z;
+            //}
 
             if (iData.ScaleFactor != 1.0f)
             {
@@ -929,11 +933,12 @@ bool ModelConverter::loadRigged(const aiScene* scene)
                 XMFLOAT3 tVec = { v.TangentU.x, v.TangentU.y, v.TangentU.z };
 
                 XMMATRIX trf = XMLoadFloat4x4(&m->nodeTransform);
-                XMMATRIX rf = XMLoadFloat4x4(&m->nodeRotation);
+                trf = XMMatrixInverse(&XMMatrixDeterminant(trf), trf);
+                //XMMATRIX rf = XMLoadFloat4x4(&m->nodeRotation);
 
                 transformXM(vec, trf);
-                transformXM(nVec, rf);
-                transformXM(tVec, rf);
+                transformXM(nVec, trf);
+                transformXM(tVec, trf);
 
                 v.Position = { vec.x, vec.y, vec.z };
                 v.Normal = { nVec.x, nVec.y, nVec.z };
@@ -1059,12 +1064,14 @@ bool ModelConverter::loadM3D()
         }
     
 
-        std::vector<int> boneIndexToParent(numBones);
+        bHierarchy.resize(numBones);
 
         fin >> ignore; // BoneHierarchy header text
         for (UINT i = 0; i < numBones; ++i)
         {
-            fin >> ignore >> boneIndexToParent[i];
+            int l;
+            fin >> ignore >> l;
+            bHierarchy[i] = std::pair<int, int>((int)i, l);
         }
 
         //animation
@@ -1119,7 +1126,7 @@ bool ModelConverter::loadM3D()
         for (UINT i = 0; i < numBones; i++)
         {
             bones[i].Index = i;
-            bones[i].ParentIndex = boneIndexToParent[i];
+            bones[i].ParentIndex = bHierarchy[i].second;
             bones[i].Name = "bone";
             bones[i].ParentName = "bone";
             XMStoreFloat4x4(&bones[i].nodeTransform, XMMatrixIdentity());
@@ -1309,7 +1316,7 @@ bool ModelConverter::writeS3D()
         fileHandle.write(reinterpret_cast<const char*>(&b.Name[0]), boneStrSize);
 
         /*bone offset matrix*/
-        aiMatrix4x4 offsetMatrix = b.AIBone->mOffsetMatrix.Transpose(); /*transpose because assimp uses opengl style matrices*/
+        aiMatrix4x4 offsetMatrix = b.AIBone->mOffsetMatrix;
 
         fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a1), sizeof(float));
         fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a2), sizeof(float));
