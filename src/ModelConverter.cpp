@@ -175,32 +175,34 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
         return false;
     }
 
-    int bonesUsed = 1;
-
-    while (bonesUsed != model.bones.size())
-    {
-
-        for (auto& b : model.bones)
-        {
-            if (!b.used)
-            {
-                if (isInHierarchy(b.parentIndex, model.boneHierarchy))
-                {
-                    model.boneHierarchy[bonesUsed] = std::pair<int, int>(b.index, b.parentIndex);
-                    b.used = true;
-                    bonesUsed++;
-                }
-            }
-        }
-
-    }
-
-    /*test if bone hierarchy is correct*/
-    std::vector<int> testHierarchy;
-    testHierarchy.push_back(-1);
-
     if (model.isRigged)
     {
+
+        int bonesUsed = 1;
+
+        while (bonesUsed != model.bones.size())
+        {
+
+            for (auto& b : model.bones)
+            {
+                if (!b.used)
+                {
+                    if (isInHierarchy(b.parentIndex, model.boneHierarchy))
+                    {
+                        model.boneHierarchy[bonesUsed] = std::pair<int, int>(b.index, b.parentIndex);
+                        b.used = true;
+                        bonesUsed++;
+                    }
+                }
+            }
+
+        }
+
+        /*test if bone hierarchy is correct*/
+        std::vector<int> testHierarchy;
+        testHierarchy.push_back(-1);
+
+
         for (const auto& v : model.boneHierarchy)
         {
 

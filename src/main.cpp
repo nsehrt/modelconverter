@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
     initData.fileName = argv[1];
 
 #ifdef _DEBUG
-    initData.fileName = "C:\\Users\\n_seh\\Desktop\\blender\\geo2.dae";
+    initData.fileName = "C:\\Users\\n_seh\\Desktop\\blender\\Tree_01_g.fbx";
 #endif
 
     for (int i = 2; i < argc; i++)
