@@ -1,6 +1,5 @@
 #include "modelconverter.h"
-
-using namespace DirectX;
+#include <functional>
 
 
 bool ModelConverter::load(const InitData& initData)
@@ -9,6 +8,9 @@ bool ModelConverter::load(const InitData& initData)
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
+    std::cout.precision(4);
+    std::cout << std::fixed;
+
     /*extract base file name*/
     char id[1024];
     _splitpath_s(initData.fileName.c_str(), NULL, 0, NULL, 0, id, 1024, NULL, 0);
@@ -16,7 +18,28 @@ bool ModelConverter::load(const InitData& initData)
     model.fileName = initData.prefix + id;
 
     /*load scene*/
-    const aiScene* scene = importer.ReadFile(initData.fileName, aiProcessPreset_TargetRealtime_MaxQuality | aiProcess_ConvertToLeftHanded);
+    const unsigned int ppsteps = aiProcess_CalcTangentSpace | // calculate tangents and bitangents if possible
+        aiProcess_JoinIdenticalVertices | // join identical vertices/ optimize indexing
+        aiProcess_ValidateDataStructure | // perform a full validation of the loader's output
+        aiProcess_ImproveCacheLocality | // improve the cache locality of the output vertices
+        aiProcess_RemoveRedundantMaterials | // remove redundant materials
+        aiProcess_FindDegenerates | // remove degenerated polygons from the import
+        aiProcess_FindInvalidData | // detect invalid model data, such as invalid normal vectors
+        aiProcess_GenUVCoords | // convert spherical, cylindrical, box and planar mapping to proper UVs
+        aiProcess_TransformUVCoords | // preprocess UV transformations (scaling, translation ...)
+        aiProcess_FindInstances | // search for instanced meshes and remove them by references to one master
+        aiProcess_LimitBoneWeights | // limit bone weights to 4 per vertex
+        aiProcess_OptimizeMeshes | // join small meshes, if possible;
+        0;
+
+    const aiScene* scene = importer.ReadFile(initData.fileName, 
+                                             ppsteps | /* configurable pp steps */
+                                             aiProcess_GenSmoothNormals | // generate smooth normal vectors if not existing
+                                             aiProcess_SplitLargeMeshes | // split large, unrenderable meshes into submeshes
+                                             aiProcess_Triangulate | // triangulate polygons with more than 3 edges
+                                             //aiProcess_ConvertToLeftHanded | // convert everything to D3D left handed space
+                                             aiProcess_SortByPType | // make 'clean' meshes which consist of a single typ of primitives
+                                             0);
 
     if (!scene)
     {
@@ -63,11 +86,9 @@ bool ModelConverter::load(const InitData& initData)
 
 bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 {
-    XMFLOAT3 cMin(+FLT_MAX, +FLT_MAX, +FLT_MAX);
-    XMFLOAT3 cMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 
-    XMVECTOR vMin = XMLoadFloat3(&cMin);
-    XMVECTOR vMax = XMLoadFloat3(&cMax);
+    aiVector3D vMin = { +FLT_MAX, +FLT_MAX, +FLT_MAX };
+    aiVector3D vMax = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
     std::cout << initData << "\n===================================================\n\n";
 
@@ -121,11 +142,12 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
     /*print node hierarchy*/
 
     aiNode* rootNode = scene->mRootNode;
+    model.rootNode = rootNode;
 
     std::cout << "\n===================================================\n";
 
     std::cout << "\nNode hierarchy:\n\n";
-    printNodes(rootNode);
+    printAINodes(rootNode);
     std::cout << std::endl;
 
 
@@ -229,14 +251,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
     {
 
         auto rNode = scene->mRootNode->FindNode(rootBoneName.c_str());
-
-        /*load global armature inverse*/
-        model.globalInverse = getGlobalTransform(rNode->mParent).Inverse();
-
-        std::cout << "Armature global matrix:\n";
-        printAIMatrix(model.globalInverse);
-        std::cout << "\n===================================================\n\n";
-
 
         model.animations.resize(scene->mNumAnimations);
         std::cout << "\n";
@@ -358,18 +372,18 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 tex = mesh->mTextureCoords[0][v];
             }
 
-
             /*convert to vertex data format*/
-            model.meshes[j].vertices.push_back(Vertex(float3(pos.x, pos.y, pos.z),
-                                           float2(tex.x, tex.y),
-                                           float3(norm.x, norm.y, norm.z),
-                                           float3(tangU.x, tangU.y, tangU.z)
-            ));
+            model.meshes[j].vertices.push_back(Vertex(pos, tex, norm, tangU));
 
-            XMFLOAT3 pV3 = { pos.x, pos.y, pos.z };
+            if (pos < vMin)
+            {
+                vMin = pos;
+            }
 
-            vMin = XMVectorMin(vMin, XMLoadFloat3(&pV3));
-            vMax = XMVectorMax(vMax, XMLoadFloat3(&pV3));
+            if (vMax < pos)
+            {
+                vMax = pos;
+            }
 
         }
 
@@ -379,31 +393,14 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
         if (trfNode)
         {
 
-            aiMatrix4x4 matrix = getGlobalTransform(trfNode);
-
-            model.meshes[j].nodeTransform._11 = matrix.a1;
-            model.meshes[j].nodeTransform._12 = matrix.a2;
-            model.meshes[j].nodeTransform._13 = matrix.a3;
-            model.meshes[j].nodeTransform._14 = matrix.a4;
-            model.meshes[j].nodeTransform._21 = matrix.b1;
-            model.meshes[j].nodeTransform._22 = matrix.b2;
-            model.meshes[j].nodeTransform._23 = matrix.b3;
-            model.meshes[j].nodeTransform._24 = matrix.b4;
-            model.meshes[j].nodeTransform._31 = matrix.c1;
-            model.meshes[j].nodeTransform._32 = matrix.c2;
-            model.meshes[j].nodeTransform._33 = matrix.c3;
-            model.meshes[j].nodeTransform._34 = matrix.c4;
-            model.meshes[j].nodeTransform._41 = matrix.d1;
-            model.meshes[j].nodeTransform._42 = matrix.d2;
-            model.meshes[j].nodeTransform._43 = matrix.d3;
-            model.meshes[j].nodeTransform._44 = matrix.d4;
+            model.meshes[j].nodeTransform = getGlobalTransform(trfNode);
 
         }
         else
         {
             std::cout << "\nCouldn't find the associated node!\n";
 
-            XMStoreFloat4x4(&model.meshes[j].nodeTransform, XMMatrixIdentity());
+            model.meshes[j].nodeTransform = aiMatrix4x4();
         }
 
         std::cout << "\n---------------------------------------------------\n\n";
@@ -466,8 +463,7 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
     /*apply centering and scaling if needed*/
 
-    XMFLOAT3 center;
-    DirectX::XMStoreFloat3(&center, 0.5f * (vMin + vMax));
+    aiVector3D center = 0.5f * (vMin + vMax);
 
     if (initData.centerEnabled && !model.isRigged)
     {
@@ -486,39 +482,17 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
             if (initData.centerEnabled && !model.isRigged)
             {
-                v.Position.x -= center.x;
-                v.Position.y -= center.y;
-                v.Position.z -= center.z;
+                v.Position -= center;
             }
 
             if (initData.scaleFactor != 1.0f)
             {
-                DirectX::XMFLOAT3 xm = { v.Position.x, v.Position.y, v.Position.z };
-                XMVECTOR a = XMLoadFloat3(&xm);
-                a = XMVectorScale(a, initData.scaleFactor);
-                DirectX::XMStoreFloat3(&xm, a);
-
-                v.Position.x = xm.x;
-                v.Position.y = xm.y;
-                v.Position.z = xm.z;
+                v.Position *= initData.scaleFactor;
             }
 
-
-            XMFLOAT3 vec = { v.Position.x, v.Position.y, v.Position.z };
-            XMFLOAT3 nVec = { v.Normal.x, v.Normal.y, v.Normal.z };
-            XMFLOAT3 tVec = { v.TangentU.x, v.TangentU.y, v.TangentU.z };
-
-            XMMATRIX trf = XMLoadFloat4x4(&m.nodeTransform);
-            trf = XMMatrixInverse(&XMMatrixDeterminant(trf), trf);
-
-            transformXM(vec, trf);
-            transformXM(nVec, trf);
-            transformXM(tVec, trf);
-
-            v.Position = { vec.x, vec.y, vec.z };
-            v.Normal = { nVec.x, nVec.y, nVec.z };
-            v.TangentU = { tVec.x, tVec.y, tVec.z };
-
+            v.Position = m.nodeTransform * v.Position;
+            v.Normal = m.nodeTransform * v.Normal;
+            v.TangentU = m.nodeTransform * v.TangentU;
 
         }
     }
@@ -566,29 +540,6 @@ bool ModelConverter::write()
     /*bone data only in s3d*/
     if (model.isRigged)
     {
-        /*global armature inverse*/
-        auto wMatrix = model.globalInverse.Transpose(); //!!!
-
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.a1), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.a2), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.a3), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.a4), sizeof(float));
-
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.b1), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.b2), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.b3), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.b4), sizeof(float));
-
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.c1), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.c2), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.c3), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.c4), sizeof(float));
-
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.d1), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.d2), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.d3), sizeof(float));
-        fileHandle.write(reinterpret_cast<const char*>(&wMatrix.d4), sizeof(float));
-
 
         /*number of bones*/
         char boneSize = (char)model.bones.size();
@@ -605,38 +556,46 @@ bool ModelConverter::write()
             fileHandle.write(reinterpret_cast<const char*>(&boneStrSize), sizeof(boneStrSize));
             fileHandle.write(reinterpret_cast<const char*>(&b.name[0]), boneStrSize);
 
-            /*bone offset matrix*/
-            aiMatrix4x4 offsetMatrix = b.bone->mOffsetMatrix.Transpose(); //!!!
+            ///*bone offset matrix*/
+            //std::cout << "\nBone " << b.name << "\n";
+            //printAIMatrix(b.bone->mOffsetMatrix);
 
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a1), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a2), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a3), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.a4), sizeof(float));
-
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.b1), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.b2), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.b3), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.b4), sizeof(float));
-
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.c1), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.c2), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.c3), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.c4), sizeof(float));
-
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.d1), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.d2), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.d3), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&offsetMatrix.d4), sizeof(float));
-
+            fileHandle.write(reinterpret_cast<const char*>(&b.bone->mOffsetMatrix), sizeof(aiMatrix4x4));
 
         }
 
-        /*bone hierarchy*/
+        /*bone hierarchy pairs*/
         for (const auto& b : model.boneHierarchy)
         {
             fileHandle.write(reinterpret_cast<const char*>(&b.first), sizeof(int));
             fileHandle.write(reinterpret_cast<const char*>(&b.second), sizeof(int));
         }
+
+
+        /*complete node tree*/
+        std::function<void(aiNode*, int)> writeTree = [&](aiNode* node, int depth) -> void
+        {
+            std::cout << std::string((long long)depth * 2, ' ') << ">> writing " << node->mName.C_Str() << "\n";
+
+            /*name*/
+            short nodeNameSize = (short)node->mName.length;
+            fileHandle.write(reinterpret_cast<const char*>(&nodeNameSize), sizeof(nodeNameSize));
+            fileHandle.write(reinterpret_cast<const char*>(&node->mName.C_Str()[0]), nodeNameSize);
+
+            /*transform*/
+            fileHandle.write(reinterpret_cast<const char*>(&node->mTransformation), sizeof(aiMatrix4x4));
+
+            /*number of children*/
+            fileHandle.write(reinterpret_cast<const char*>(&node->mNumChildren), sizeof(unsigned int));
+
+            for (int i = 0; i < (int)node->mNumChildren; i++)
+            {
+                writeTree(node->mChildren[i], depth + 1);
+            }
+        };
+
+        writeTree(model.rootNode, 0);
+
     }
 
     /*mesh data for both formats*/
@@ -659,36 +618,21 @@ bool ModelConverter::write()
         /*vertices*/
         for (int v = 0; v < verticesSize; v++)
         {
-            XMFLOAT3 Position;
-            Position.x = model.meshes[i].vertices[v].Position.x;
-            Position.y = model.meshes[i].vertices[v].Position.y;
-            Position.z = model.meshes[i].vertices[v].Position.z;
-
-            XMFLOAT3 Normal;
-            Normal.x = model.meshes[i].vertices[v].Normal.x;
-            Normal.y = model.meshes[i].vertices[v].Normal.y;
-            Normal.z = model.meshes[i].vertices[v].Normal.z;
-
-            XMFLOAT3 Tangent;
-            Tangent.x = model.meshes[i].vertices[v].TangentU.x;
-            Tangent.y = model.meshes[i].vertices[v].TangentU.y;
-            Tangent.z = model.meshes[i].vertices[v].TangentU.z;
-
             /*position*/
-            fileHandle.write(reinterpret_cast<const char*>(&Position.x), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&Position.y), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&Position.z), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].Position.x), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].Position.y), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].Position.z), sizeof(float));
             /*texture coordinates*/
-            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].Texture.u), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].Texture.v), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].Texture.x), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].Texture.y), sizeof(float));
             /*normals*/
-            fileHandle.write(reinterpret_cast<const char*>(&Normal.x), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&Normal.y), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&Normal.z), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].Normal.x), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].Normal.y), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].Normal.z), sizeof(float));
             /*tangentU*/
-            fileHandle.write(reinterpret_cast<const char*>(&Tangent.x), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&Tangent.y), sizeof(float));
-            fileHandle.write(reinterpret_cast<const char*>(&Tangent.z), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].TangentU.x), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].TangentU.y), sizeof(float));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].TangentU.z), sizeof(float));
 
 
             /*bone weights only for rigged*/
@@ -726,7 +670,7 @@ bool ModelConverter::write()
         /*indices*/
         for (int j = 0; j < indicesSize; j++)
         {
-            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].indices[j]), sizeof(uint32_t));
+            fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].indices[j]), sizeof(UINT));
         }
 
     }
@@ -735,14 +679,16 @@ bool ModelConverter::write()
 
 
 
-    std::cout << "Finished writing " << model.fileName << "." << std::endl;
-    std::cout << "\n===================================================\n\n";
+    std::cout << "\nFinished writing " << model.fileName << "." << std::endl;
 
     return true;
 }
 
 void ModelConverter::printFile(const std::string& fileName, bool verbose)
 {
+    std::cout.precision(4);
+    std::cout << std::fixed;
+
     std::string::size_type idx;
 
     idx = fileName.rfind('.');
@@ -824,7 +770,7 @@ void ModelConverter::printB3D(const std::string& fileName, bool verbose)
     char numMeshes;
     file.read(&numMeshes, sizeof(numMeshes));
 
-    std::cout << std::fixed << std::showpoint << std::setprecision(2) << "Number of meshes: " << (int)numMeshes << "\n\n";
+    std::cout << std::showpoint << "Number of meshes: " << (int)numMeshes << "\n\n";
 
     for (char i = 0; i < numMeshes; i++)
     {
@@ -855,8 +801,8 @@ void ModelConverter::printB3D(const std::string& fileName, bool verbose)
             file.read((char*)(&vertex.Position.y), sizeof(float));
             file.read((char*)(&vertex.Position.z), sizeof(float));
 
-            file.read((char*)(&vertex.Texture.u), sizeof(float));
-            file.read((char*)(&vertex.Texture.v), sizeof(float));
+            file.read((char*)(&vertex.Texture.x), sizeof(float));
+            file.read((char*)(&vertex.Texture.y), sizeof(float));
 
             file.read((char*)(&vertex.Normal.x), sizeof(float));
             file.read((char*)(&vertex.Normal.y), sizeof(float));
@@ -869,7 +815,7 @@ void ModelConverter::printB3D(const std::string& fileName, bool verbose)
             if (verbose)
             {
                 std::cout << "Pos: " << vertex.Position.x << " | " << vertex.Position.y << " | " << vertex.Position.z << "\n";
-                std::cout << "Tex: " << vertex.Texture.u << " | " << vertex.Texture.v << "\n";
+                std::cout << "Tex: " << vertex.Texture.x << " | " << vertex.Texture.y << "\n";
                 std::cout << "Nor: " << vertex.Normal.x << " | " << vertex.Normal.y << " | " << vertex.Normal.z << "\n";
                 std::cout << "Tan: " << vertex.TangentU.x << " | " << vertex.TangentU.y << " | " << vertex.TangentU.z << "\n";
                 std::cout << "\n";
@@ -957,48 +903,16 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
         return;
     }
 
-    /*armature global inverse*/
-    aiMatrix4x4 mArmature;
-
-    /*matrix*/
-    file.read((char*)&mArmature.a1, sizeof(float));
-    file.read((char*)&mArmature.a2, sizeof(float));
-    file.read((char*)&mArmature.a3, sizeof(float));
-    file.read((char*)&mArmature.a4, sizeof(float));
-
-    file.read((char*)&mArmature.b1, sizeof(float));
-    file.read((char*)&mArmature.b2, sizeof(float));
-    file.read((char*)&mArmature.b3, sizeof(float));
-    file.read((char*)&mArmature.b4, sizeof(float));
-
-    file.read((char*)&mArmature.c1, sizeof(float));
-    file.read((char*)&mArmature.c2, sizeof(float));
-    file.read((char*)&mArmature.c3, sizeof(float));
-    file.read((char*)&mArmature.c4, sizeof(float));
-
-    file.read((char*)&mArmature.d1, sizeof(float));
-    file.read((char*)&mArmature.d2, sizeof(float));
-    file.read((char*)&mArmature.d3, sizeof(float));
-    file.read((char*)&mArmature.d4, sizeof(float));
-
-    if (verbose)
-    {
-        std::cout << "Global armature inverse transform:\n";
-        printAIMatrix(mArmature);
-    }
-
-    std::cout << "\n---------------------------------------------------\n\n";
-
     /*num bones*/
     char vNumBones = 0;
     file.read((char*)(&vNumBones), sizeof(char));
 
-    std::cout << std::fixed << std::showpoint << std::setprecision(2) << "NumBones: " << (int)vNumBones << std::endl;
+    std::cout << std::showpoint << "NumBones: " << (int)vNumBones << std::endl;
 
     std::cout << "\n---------------------------------------------------\n\n";
 
     int temp;
-    DirectX::XMFLOAT4X4 mOffset;
+    aiMatrix4x4 mOffset;
 
     std::vector<std::string> boneNames(vNumBones);
 
@@ -1024,33 +938,18 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
         std::wcout << "Bone Name:\t" << bname << "\n";
 
         /*matrix*/
-        file.read((char*)&mOffset._11, sizeof(float));
-        file.read((char*)&mOffset._12, sizeof(float));
-        file.read((char*)&mOffset._13, sizeof(float));
-        file.read((char*)&mOffset._14, sizeof(float));
+        ai_real mOff[16];
+        file.read((char*)&mOff[0], sizeof(float) * 16);
 
-        file.read((char*)&mOffset._21, sizeof(float));
-        file.read((char*)&mOffset._22, sizeof(float));
-        file.read((char*)&mOffset._23, sizeof(float));
-        file.read((char*)&mOffset._24, sizeof(float));
-
-        file.read((char*)&mOffset._31, sizeof(float));
-        file.read((char*)&mOffset._32, sizeof(float));
-        file.read((char*)&mOffset._33, sizeof(float));
-        file.read((char*)&mOffset._34, sizeof(float));
-
-        file.read((char*)&mOffset._41, sizeof(float));
-        file.read((char*)&mOffset._42, sizeof(float));
-        file.read((char*)&mOffset._43, sizeof(float));
-        file.read((char*)&mOffset._44, sizeof(float));
+        mOffset = aiMatrix4x4(mOff[0], mOff[1], mOff[2], mOff[3],
+                              mOff[4], mOff[5], mOff[6], mOff[7],
+                              mOff[8], mOff[9], mOff[10], mOff[11],
+                              mOff[12], mOff[13], mOff[14], mOff[15]
+                              );
 
         if (verbose)
         {
-            std::cout << "Offset Matrix:\n";
-            std::cout << mOffset._11 << " | " << mOffset._12 << " | " << mOffset._13 << " | " << mOffset._14 << "\n";
-            std::cout << mOffset._21 << " | " << mOffset._22 << " | " << mOffset._23 << " | " << mOffset._24 << "\n";
-            std::cout << mOffset._31 << " | " << mOffset._32 << " | " << mOffset._33 << " | " << mOffset._34 << "\n";
-            std::cout << mOffset._41 << " | " << mOffset._42 << " | " << mOffset._43 << " | " << mOffset._44 << "\n";
+            printAIMatrix(mOffset);
         }
 
         std::cout << "\n";
@@ -1076,6 +975,53 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
 
     std::cout << "\n\n---------------------------------------------------\n\n";
 
+
+    /*node tree*/
+    Node root;
+
+    std::function<void(Node*, Node*)> loadTree = [&](Node* node, Node* parent)
+    {
+        /*read data*/
+        short slen = 0;
+        file.read((char*)(&slen), sizeof(short));
+
+        char* nameStr = new char[(INT_PTR)slen + 1];
+        file.read(nameStr, slen);
+        nameStr[slen] = '\0';
+
+        ai_real mTemp[16];
+        file.read((char*)&mTemp[0], sizeof(float) * 16);
+
+        int numChildren = 0;
+        file.read((char*)(&numChildren), sizeof(int));
+
+
+        /*fill node*/
+        node->name = nameStr;
+        node->transform = aiMatrix4x4(mTemp[0], mTemp[1], mTemp[2], mTemp[3],
+                                      mTemp[4], mTemp[5], mTemp[6], mTemp[7],
+                                      mTemp[8], mTemp[9], mTemp[10], mTemp[11],
+                                      mTemp[12], mTemp[13], mTemp[14], mTemp[15]
+        );
+
+        node->parent = parent;
+
+        for (int i = 0; i < numChildren; i++)
+        {
+            node->children.push_back(Node());
+            loadTree(&node->children.back(), node);
+        }
+
+
+    };
+
+    loadTree(&root, nullptr);
+
+    printNodes(&root);
+
+    std::cout << "\n---------------------------------------------------\n\n";
+
+    /*meshes*/
     char numMeshes;
     file.read(&numMeshes, sizeof(numMeshes));
 
@@ -1110,8 +1056,8 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
             file.read((char*)(&vertex.Position.y), sizeof(float));
             file.read((char*)(&vertex.Position.z), sizeof(float));
 
-            file.read((char*)(&vertex.Texture.u), sizeof(float));
-            file.read((char*)(&vertex.Texture.v), sizeof(float));
+            file.read((char*)(&vertex.Texture.x), sizeof(float));
+            file.read((char*)(&vertex.Texture.y), sizeof(float));
 
             file.read((char*)(&vertex.Normal.x), sizeof(float));
             file.read((char*)(&vertex.Normal.y), sizeof(float));
@@ -1133,7 +1079,7 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
             if (verbose)
             {
                 std::cout << "Pos: " << vertex.Position.x << " | " << vertex.Position.y << " | " << vertex.Position.z << "\n";
-                std::cout << "Tex: " << vertex.Texture.u << " | " << vertex.Texture.v << "\n";
+                std::cout << "Tex: " << vertex.Texture.x << " | " << vertex.Texture.y << "\n";
                 std::cout << "Nor: " << vertex.Normal.x << " | " << vertex.Normal.y << " | " << vertex.Normal.z << "\n";
                 std::cout << "Tan: " << vertex.TangentU.x << " | " << vertex.TangentU.y << " | " << vertex.TangentU.z << "\n";
                 std::cout << "BlInd: " << vertex.BlendIndices[0] << " | " << vertex.BlendIndices[1] << " | " << vertex.BlendIndices[2] << " | " << vertex.BlendIndices[3] << "\n";
@@ -1231,7 +1177,7 @@ void ModelConverter::printCLP(const std::string& fileName, bool verbose)
     file.read(animName, slen);
     animName[slen] = '\0';
 
-    std::cout << std::fixed << std::showpoint << std::setprecision(2) << "Name:\t" << animName << "\n";
+    std::cout << std::showpoint << "Name:\t" << animName << "\n";
 
     UINT vNumBones = 0;
     file.read((char*)(&vNumBones), sizeof(int));
@@ -1345,7 +1291,7 @@ bool ModelConverter::writeAnimations()
         fileHandle.close();
 
         auto endTime = std::chrono::high_resolution_clock::now();
-        std::cout << "Finished writing " << clipFile << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms." << std::endl;
+        std::cout << "\nFinished writing " << clipFile << " in " << std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count() << "ms." << std::endl;
         std::cout << "\n---------------------------------------------------\n\n";
     }
 
@@ -1426,7 +1372,7 @@ bool ModelConverter::isInVector(std::vector<int>& arr, int index)
     return false;
 }
 
-void ModelConverter::printNodes(aiNode* node, int depth)
+void ModelConverter::printAINodes(aiNode* node, int depth)
 {
     std::cout << std::string((long long)depth * 3, ' ') << char(0xC0) << std::string(2, '-') << ">" << node->mName.C_Str();
     if (node->mTransformation.IsIdentity())
@@ -1437,8 +1383,28 @@ void ModelConverter::printNodes(aiNode* node, int depth)
 
     for (UINT i = 0; i < node->mNumChildren; i++)
     {
-        printNodes(node->mChildren[i], depth + 1);
+        printAINodes(node->mChildren[i], depth + 1);
     }
+}
+
+void ModelConverter::printNodes(Node* node, int depth)
+{
+
+    std::cout << std::string((long long)depth * 3, ' ') << char(0xC0) << std::string(2, '-') << ">" << node->name;
+    if (node->transform.IsIdentity())
+    {
+        std::cout << " (Identity Transform)";
+    }
+    std::cout << "\n";
+
+    if(!node->transform.IsIdentity())
+    printAIMatrix(node->transform);
+
+    for (UINT i = 0; i < node->children.size(); i++)
+    {
+        printNodes(&node->children[i], depth + 1);
+    }
+
 }
 
 void ModelConverter::printAIMatrix(const aiMatrix4x4& m)
@@ -1449,29 +1415,23 @@ void ModelConverter::printAIMatrix(const aiMatrix4x4& m)
     m.Decompose(scale, rotation, translation);
     m.Decompose(scale, quat, translation);
 
-    std::cout << std::fixed << "T: " << translation.x << " | " << translation.y << " | " << translation.z << "\n";
-    std::cout << std::fixed << "R: " << DirectX::XMConvertToDegrees(rotation.x) << " | " << DirectX::XMConvertToDegrees(rotation.y) << " | " << DirectX::XMConvertToDegrees(rotation.z) << "\n";
-    std::cout << std::fixed << "Q: " << quat.x << " | " << quat.y << " | " << quat.z << " | " << quat.w << "\n";
-    std::cout << std::fixed << "S: " << scale.x << " | " << scale.y << " | " << scale.z << "\n";
+    std::cout << m.a1 << " | " << m.a2 << " | " << m.a3 << " | " << m.a4 << "\n";
+    std::cout << m.b1 << " | " << m.b2 << " | " << m.b3 << " | " << m.b4 << "\n";
+    std::cout << m.c1 << " | " << m.c2 << " | " << m.c3 << " | " << m.c4 << "\n";
+    std::cout << m.d1 << " | " << m.d2 << " | " << m.d3 << " | " << m.d4 << "\n\n";
 }
 
 aiMatrix4x4 ModelConverter::getGlobalTransform(aiNode* node)
 {
     aiMatrix4x4 result = node->mTransformation;
 
-    aiNode* tNode = node;
+    aiNode* tNode = node->mParent;
 
-    while (tNode->mParent != nullptr)
+    while (tNode != nullptr)
     {
+        result = tNode->mTransformation * result;
         tNode = tNode->mParent;
-        result *= tNode->mTransformation;
     }
 
     return result;
-}
-
-void ModelConverter::transformXM(DirectX::XMFLOAT3& xmf, DirectX::XMMATRIX trfMatrix)
-{
-    DirectX::XMVECTOR vec = XMVector3Transform(XMLoadFloat3(&xmf), trfMatrix);
-    DirectX::XMStoreFloat3(&xmf, vec);
 }

@@ -15,7 +15,6 @@
 #include <assimp\postprocess.h>
 #include <assimp\material.h>
 #include <assimp\version.h>
-#include <DirectXMath.h>
 #include <cmath>
 
 #include "data.h"
@@ -54,8 +53,9 @@ private:
     static bool existsBoneByName(const std::vector<Bone>& bones, const std::string& name);
     static bool isInHierarchy(int index, const std::vector<std::pair<int, int>>& hierarchy);
     static bool isInVector(std::vector<int>& arr, int index);
-    static void printNodes(aiNode* node, int depth = 0);
+    static void printAINodes(aiNode* node, int depth = 0);
+    static void printNodes(Node* node, int depth = 0);
     static void printAIMatrix(const aiMatrix4x4& m);
     static aiMatrix4x4 getGlobalTransform(aiNode* node);
-    static void transformXM(DirectX::XMFLOAT3& xmf, DirectX::XMMATRIX trfMatrix);
+
 };

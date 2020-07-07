@@ -29,13 +29,14 @@ int main(int argc, char* argv[])
     initData.fileName = argv[1];
 
 #ifdef _DEBUG
-    initData.fileName = "C:\\Users\\n_seh\\Desktop\\blender\\Tree_01_g.fbx";
+    initData.fileName = "C:\\Users\\n_seh\\Desktop\\blender\\geo2.dae";
 #endif
+
 
     for (int i = 2; i < argc; i++)
     {
         std::vector<std::string> sVec = split(argv[i], '=');
-
+        
         if (sVec.size() == 1)
         {
             if (sVec[0] == "-nc")
