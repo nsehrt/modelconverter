@@ -250,8 +250,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
     if (model.isRigged)
     {
 
-        auto rNode = scene->mRootNode->FindNode(rootBoneName.c_str());
-
         model.animations.resize(scene->mNumAnimations);
         std::cout << "\n";
 
@@ -261,18 +259,12 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
             auto anim = scene->mAnimations[k];
             float animTicks = (float)anim->mTicksPerSecond;
 
-            std::cout << "Animation " << anim->mName.C_Str() << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << " tick rate) has " << anim->mNumChannels << " channels.\n";
+            std::cout << "Animation " << anim->mName.C_Str() << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << " tick rate) animates " << anim->mNumChannels << " nodes.\n";
 
             model.animations[k].name = anim->mName.C_Str();
             /*get rid of | character*/
             std::replace(model.animations[k].name.begin(), model.animations[k].name.end(), '|', '_');
             model.animations[k].keyframes.resize(model.bones.size());
-
-
-            for (size_t x = 0; x < model.animations[k].keyframes.size(); x++)
-            {
-                model.animations[k].keyframes[x].push_back(KeyFrame());
-            }
 
             for (UINT p = 0; p < anim->mNumChannels; p++)
             {
@@ -289,35 +281,49 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 {
                     KeyFrame keyFrame;
 
-
-                    aiMatrix4x4 keyMatrix = aiMatrix4x4({ 1,1,1 }, channel->mRotationKeys[m].mValue, channel->mPositionKeys[m].mValue);
-
-                    aiVector3D scale, translation;
-                    aiQuaternion rotation;
-
-                    keyMatrix.Decompose(scale, rotation, translation);
-
-
                     keyFrame.timeStamp = (float)channel->mRotationKeys[m].mTime / animTicks;
 
-                    keyFrame.rotationQuat = { rotation.x,
-                                                rotation.y,
-                                                rotation.z,
-                                                rotation.w };
 
-                    if (m <= (int)channel->mNumPositionKeys)
+                    /*keep data from previous keyframe if there are no new data points
+                    */
+                    if (m >= (int)channel->mNumRotationKeys)
                     {
-                        keyFrame.timeStamp = (float)channel->mPositionKeys[m].mTime / animTicks;
-                        keyFrame.translation = { translation.x,
-                            translation.y,
-                            translation.z };
+                        keyFrame.rotationQuat = channel->mRotationKeys[channel->mNumRotationKeys - 1].mValue;
                     }
+                    else
+                    {
+                        keyFrame.rotationQuat = channel->mRotationKeys[m].mValue;
+                    }
+                    
+
+                    if (m >= (int)channel->mNumPositionKeys)
+                    {
+                        keyFrame.translation = channel->mPositionKeys[channel->mNumPositionKeys-1].mValue;
+                    }
+                    else
+                    {
+                        keyFrame.translation = channel->mPositionKeys[m].mValue;
+                    }
+                    
+
 
                     model.animations[k].keyframes[nodeIndex][m] = keyFrame;
 
                 }
 
+
             }
+
+            /*fill empty bones with identity keyframe*/
+            for (int i = 0; i < (int)model.animations[k].keyframes.size(); i++)
+            {
+                if (model.animations[k].keyframes[i].empty())
+                {
+                    model.animations[k].keyframes[i].push_back(KeyFrame());
+                }
+            }
+
+
 
             std::cout << "\n---------------------------------------------------\n\n";
         }
