@@ -320,6 +320,7 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 if (model.animations[k].keyframes[i].empty())
                 {
                     model.animations[k].keyframes[i].push_back(KeyFrame());
+                    model.animations[k].keyframes[i][0].isEmpty = true;
                 }
             }
 
@@ -1197,6 +1198,13 @@ void ModelConverter::printCLP(const std::string& fileName, bool verbose)
 
         UINT vKeyFrames = 0;
         file.read((char*)(&vKeyFrames), sizeof(int));
+
+        if (vKeyFrames == -1)
+        {
+            std::cout << "Bone " << (int)i << " has no key frames.\n\n";
+            continue;
+        }
+
         std::cout << "Bone " << (int)i << " has " << vKeyFrames << " key frames.\n\n";
 
         for (UINT j = 0; j < vKeyFrames; j++)
@@ -1273,6 +1281,14 @@ bool ModelConverter::writeAnimations()
         for (int i = 0; i < f.keyframes.size(); i++)
         {
             int keyfrSize = (int)f.keyframes[i].size();
+
+            if (keyfrSize == 1 && f.keyframes[i][0].isEmpty)
+            {
+                int t = -1;
+                fileHandle.write(reinterpret_cast<const char*>(&t), sizeof(int));
+                continue;
+            }
+
             fileHandle.write(reinterpret_cast<const char*>(&keyfrSize), sizeof(int));
 
             for (const auto& kf : f.keyframes[i])

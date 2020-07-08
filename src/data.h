@@ -51,6 +51,8 @@ struct Bone
 
 struct KeyFrame
 {
+    bool isEmpty = false;
+
     KeyFrame()
     {
         timeStamp = 0.0f;
