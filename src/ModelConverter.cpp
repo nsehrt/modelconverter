@@ -37,7 +37,7 @@ bool ModelConverter::load(const InitData& initData)
                                              aiProcess_GenSmoothNormals | // generate smooth normal vectors if not existing
                                              aiProcess_SplitLargeMeshes | // split large, unrenderable meshes into submeshes
                                              aiProcess_Triangulate | // triangulate polygons with more than 3 edges
-                                             //aiProcess_ConvertToLeftHanded | // convert everything to D3D left handed space
+                                             aiProcess_ConvertToLeftHanded | // convert everything to D3D left handed space
                                              aiProcess_SortByPType | // make 'clean' meshes which consist of a single typ of primitives
                                              0);
 
@@ -127,6 +127,9 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
         }
 
     }
+
+
+    if (initData.forceStatic) model.bones.clear();
 
     model.isRigged = !model.bones.empty();
 
@@ -258,10 +261,16 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
             auto anim = scene->mAnimations[k];
             float animTicks = (float)anim->mTicksPerSecond;
-
-            std::cout << "Animation " << anim->mName.C_Str() << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << " tick rate) animates " << anim->mNumChannels << " nodes.\n";
-
             model.animations[k].name = anim->mName.C_Str();
+
+            if (model.animations[k].name == "")
+            {
+                model.animations[k].name = model.name + "_Animation";
+            }
+
+            std::cout << "Animation " << model.animations[k].name << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << " tick rate) animates " << anim->mNumChannels << " nodes.\n";
+
+            
             /*get rid of | character*/
             std::replace(model.animations[k].name.begin(), model.animations[k].name.end(), '|', '_');
             model.animations[k].keyframes.resize(model.bones.size());
@@ -400,14 +409,14 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
         if (trfNode)
         {
 
-            model.meshes[j].nodeTransform = getGlobalTransform(trfNode);
+            model.meshes[j].rootTransform = getGlobalTransform(trfNode);
 
         }
         else
         {
             std::cout << "\nCouldn't find the associated node!\n";
 
-            model.meshes[j].nodeTransform = aiMatrix4x4();
+            model.meshes[j].rootTransform = aiMatrix4x4();
         }
 
         std::cout << "\n---------------------------------------------------\n\n";
@@ -430,7 +439,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
         /*add weights from bones to vertices*/
         for (const auto& b : model.bones)
         {
-
             for (UINT k = 0; k < b.bone->mNumWeights; k++)
             {
                 model.meshes[0].vertices[b.bone->mWeights[k].mVertexId].BlendIndices.push_back(b.index);
@@ -440,7 +448,7 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
         }
 
         /*check weight validity*/
-        for (const auto& v : model.meshes[0].vertices)
+        for (auto& v : model.meshes[0].vertices)
         {
             if (v.BlendIndices.size() > 4)
             {
@@ -459,9 +467,15 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 std::cout << "Blend Weight sum over 1! " << acc << std::endl;
             }
 
-            if (acc < 0.925f)
+            if (acc < 1.0f)
             {
-                std::cout << "Blend Weight sum under 0.925! " << acc << std::endl;
+                float add = (1.0f - acc) / 4.0f;
+
+                for (auto& f : v.BlendWeights)
+                {
+                    f += add;
+                }
+
             }
 
         }
@@ -497,9 +511,12 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 v.Position *= initData.scaleFactor;
             }
 
-            v.Position = m.nodeTransform * v.Position;
-            v.Normal = m.nodeTransform * v.Normal;
-            v.TangentU = m.nodeTransform * v.TangentU;
+            if (!model.isRigged)
+            {
+                v.Position = m.rootTransform * v.Position;
+                v.Normal = m.rootTransform * v.Normal;
+                v.TangentU = m.rootTransform * v.TangentU;
+            }
 
         }
     }
@@ -563,11 +580,7 @@ bool ModelConverter::write()
             fileHandle.write(reinterpret_cast<const char*>(&boneStrSize), sizeof(boneStrSize));
             fileHandle.write(reinterpret_cast<const char*>(&b.name[0]), boneStrSize);
 
-            ///*bone offset matrix*/
-            //std::cout << "\nBone " << b.name << "\n";
-            //printAIMatrix(b.bone->mOffsetMatrix);
-
-            fileHandle.write(reinterpret_cast<const char*>(&b.bone->mOffsetMatrix), sizeof(aiMatrix4x4));
+            fileHandle.write(reinterpret_cast<const char*>(&b.bone->mOffsetMatrix.Transpose()), sizeof(aiMatrix4x4));
 
         }
 
@@ -590,7 +603,7 @@ bool ModelConverter::write()
             fileHandle.write(reinterpret_cast<const char*>(&node->mName.C_Str()[0]), nodeNameSize);
 
             /*transform*/
-            fileHandle.write(reinterpret_cast<const char*>(&node->mTransformation), sizeof(aiMatrix4x4));
+            fileHandle.write(reinterpret_cast<const char*>(&node->mTransformation.Transpose()), sizeof(aiMatrix4x4));
 
             /*number of children*/
             fileHandle.write(reinterpret_cast<const char*>(&node->mNumChildren), sizeof(unsigned int));
@@ -1085,6 +1098,7 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
 
             if (verbose)
             {
+                std::cout << "Vertex Index: " << j << "\n";
                 std::cout << "Pos: " << vertex.Position.x << " | " << vertex.Position.y << " | " << vertex.Position.z << "\n";
                 std::cout << "Tex: " << vertex.Texture.x << " | " << vertex.Texture.y << "\n";
                 std::cout << "Nor: " << vertex.Normal.x << " | " << vertex.Normal.y << " | " << vertex.Normal.z << "\n";

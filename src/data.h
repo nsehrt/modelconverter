@@ -24,7 +24,7 @@ struct UnifiedMesh
 public:
     std::vector<Vertex> vertices;
     std::vector<UINT> indices;
-    aiMatrix4x4 nodeTransform;
+    aiMatrix4x4 rootTransform;
     std::string materialName;
 };
 
@@ -41,7 +41,7 @@ struct Bone
 {
     std::string name;
     int index = -1;
-    aiBone* bone;
+    aiBone* bone = nullptr;
     std::string parentName;
     int parentIndex = -1;
     aiMatrix4x4 nodeTransform;
@@ -94,6 +94,7 @@ struct InitData
     float scaleFactor = 1.0f;
     int centerEnabled = 1;
     std::string prefix = "";
+    bool forceStatic = false;
 
     friend std::ostream& operator<<(std::ostream& os, const InitData& id)
     {
