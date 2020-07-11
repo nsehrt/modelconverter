@@ -19,7 +19,7 @@ int main(int argc, char* argv[])
         std::string empty;
         std::cout << "First parameter must be path to file or -h!\n";
         std::cout << "\nPossible parameters:\n";
-        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model\n-f\t- Force a static model\n-ft\t- Force transformed vertices (only skinned models)\n-s\t- Scale the model by this factor (-s=2)\n-p\t- Prefix the output file with the entered string (-p=PRE_)\n-o\t- Print the data of a b3d/s3d/clp file (-ov for verbose output)\n" << std::endl;
+        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model\n-fs\t- Force a static model\n-ft\t- Force transformed vertices (only skinned models)\n-s\t- Scale the model by this factor (-s=2)\n-p\t- Prefix the output file with the entered string (-p=PRE_)\n-o\t- Print the data of a b3d/s3d/clp file (-ov for verbose output)\n" << std::endl;
         std::getline(std::cin, empty);
         return 0;
     }
@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
             {
                 initData.centerEnabled = 0;
             }
-            else if (sVec[0] == "-f")
+            else if (sVec[0] == "-fs")
             {
                 initData.forceStatic = true;
             }

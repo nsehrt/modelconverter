@@ -416,7 +416,18 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
         {
             std::cout << "\nCouldn't find the associated node!\n";
 
-            model.meshes[j].rootTransform = aiMatrix4x4();
+            for (int i = 0; i < scene->mRootNode->mNumChildren; i++)
+            {
+                std::string nodeName = scene->mRootNode->mChildren[i]->mName.C_Str();
+
+                if (nodeName != "Armature")
+                {
+                    std::cout << "Instead using node \"" << scene->mRootNode->mChildren[i]->mName.C_Str() << "\".\n";
+                    model.meshes[j].rootTransform = getGlobalTransform(scene->mRootNode->mChildren[i]);
+                }
+            }
+
+            
         }
 
         std::cout << "\n---------------------------------------------------\n\n";

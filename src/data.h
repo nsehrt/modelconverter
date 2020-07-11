@@ -102,8 +102,8 @@ struct InitData
     friend std::ostream& operator<<(std::ostream& os, const InitData& id)
     {
         os << "File:\t\t" << id.fileName << "\nScale:\t\t" << id.scaleFactor << "\nCentering:\t" << (id.centerEnabled ? "On" : "Off") <<
-            "\Force static:\t" << (id.forceStatic ? "On" : "Off") <<
-            "\Force transform:\t" << (id.forceTransform ? "On" : "Off") <<
+            "\nForce static:\t" << (id.forceStatic ? "On" : "Off") <<
+            "\nForce transform:\t" << (id.forceTransform ? "On" : "Off") <<
               "\nPrefix:\t\t" << (id.prefix.empty() ? "None" : id.prefix) << "\n";
         return os;
     }
