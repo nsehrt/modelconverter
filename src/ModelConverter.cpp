@@ -511,7 +511,7 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 v.Position *= initData.scaleFactor;
             }
 
-            if (!model.isRigged)
+            if (!model.isRigged || initData.forceTransform)
             {
                 v.Position = m.rootTransform * v.Position;
                 v.Normal = m.rootTransform * v.Normal;

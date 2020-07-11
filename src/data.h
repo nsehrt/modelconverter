@@ -6,6 +6,7 @@ typedef unsigned char BYTE;
 #include <assimp\Importer.hpp>
 #include <vector>
 
+/*holds all data for a skinned vertex*/
 struct Vertex
 {
     Vertex() : Position(), Texture(), Normal(), TangentU() {}
@@ -18,7 +19,7 @@ struct Vertex
     std::vector<UINT> BlendIndices;
 };
 
-
+/**/
 struct UnifiedMesh
 {
 public:
@@ -27,6 +28,7 @@ public:
     aiMatrix4x4 rootTransform;
     std::string materialName;
 };
+
 
 struct Node
 {
@@ -95,10 +97,13 @@ struct InitData
     int centerEnabled = 1;
     std::string prefix = "";
     bool forceStatic = false;
+    bool forceTransform = false;
 
     friend std::ostream& operator<<(std::ostream& os, const InitData& id)
     {
         os << "File:\t\t" << id.fileName << "\nScale:\t\t" << id.scaleFactor << "\nCentering:\t" << (id.centerEnabled ? "On" : "Off") <<
+            "\Force static:\t" << (id.forceStatic ? "On" : "Off") <<
+            "\Force transform:\t" << (id.forceTransform ? "On" : "Off") <<
               "\nPrefix:\t\t" << (id.prefix.empty() ? "None" : id.prefix) << "\n";
         return os;
     }
