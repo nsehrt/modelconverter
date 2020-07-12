@@ -29,7 +29,6 @@ public:
     std::string materialName;
 };
 
-
 struct Node
 {
     std::string name = "";
@@ -37,7 +36,6 @@ struct Node
     Node* parent = nullptr;
     std::vector<Node> children;
 };
-
 
 struct Bone
 {
@@ -49,7 +47,6 @@ struct Bone
     aiMatrix4x4 nodeTransform;
     bool used = false;
 };
-
 
 struct KeyFrame
 {
@@ -75,7 +72,6 @@ struct Animation
     std::vector<std::vector<KeyFrame>> keyframes;
 };
 
-
 struct UnifiedModel
 {
     std::string name;
@@ -84,11 +80,10 @@ struct UnifiedModel
     std::vector<Bone> bones;
     std::vector<std::pair<int, int>> boneHierarchy;
     std::vector<Animation> animations;
-    aiNode* rootNode;
+    aiNode* rootNode = nullptr;
 
     bool isRigged = false;
 };
-
 
 struct InitData
 {
@@ -104,7 +99,7 @@ struct InitData
         os << "File:\t\t" << id.fileName << "\nScale:\t\t" << id.scaleFactor << "\nCentering:\t" << (id.centerEnabled ? "On" : "Off") <<
             "\nForce static:\t" << (id.forceStatic ? "On" : "Off") <<
             "\nForce transform:\t" << (id.forceTransform ? "On" : "Off") <<
-              "\nPrefix:\t\t" << (id.prefix.empty() ? "None" : id.prefix) << "\n";
+            "\nPrefix:\t\t" << (id.prefix.empty() ? "None" : id.prefix) << "\n";
         return os;
     }
 };

@@ -1,11 +1,10 @@
 #include "modelconverter.h"
 
-const int VERSION_MAJOR = 0;
-const int VERSION_MINOR = 9;
+const int VERSION_MAJOR = 1;
+const int VERSION_MINOR = 0;
 
 int main(int argc, char* argv[])
 {
-
     ModelConverter mConverter;
     InitData initData;
 
@@ -19,24 +18,18 @@ int main(int argc, char* argv[])
         std::string empty;
         std::cout << "First parameter must be path to file or -h!\n";
         std::cout << "\nPossible parameters:\n";
-        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model\n-fs\t- Force a static model\n-ft\t- Force transformed vertices (only skinned models)\n-s\t- Scale the model by this factor (-s=2)\n-p\t- Prefix the output file with the entered string (-p=PRE_)\n-o\t- Print the data of a b3d/s3d/clp file (-ov for verbose output)\n" << std::endl;
+        std::cout << "-h\t- Help dialog\n-nc\t- Do not center the model (rigged models are never centered)\n-fs\t- Force a static model\n-ft\t- Force transformed vertices (only rigged models)\n-s\t- Scale the model by a factor (-s=2)\n-p\t- Prefix the output file with the entered string (-p=PRE_)\n-o\t- Print the data of a b3d/s3d/clp file (-ov for verbose output)\n" << std::endl;
         std::getline(std::cin, empty);
         return 0;
     }
 
-
     /*command line parameter*/
     initData.fileName = argv[1];
-
-#ifdef _DEBUG
-    initData.fileName = "C:\\Users\\n_seh\\Desktop\\blender\\geo2.dae";
-#endif
-
 
     for (int i = 2; i < argc; i++)
     {
         std::vector<std::string> sVec = split(argv[i], '=');
-        
+
         if (sVec.size() == 1)
         {
             if (sVec[0] == "-nc")
@@ -88,19 +81,15 @@ int main(int argc, char* argv[])
             std::cerr << "Unknown parameter " << argv[i] << std::endl;
             continue;
         }
-
-
     }
 
-    if (!mConverter.load(initData))
+    if (!mConverter.process(initData))
     {
         std::cerr << "Model conversion failed!" << std::endl;
         return -1;
     }
 
     std::cout << "\n===================================================\n";
-
-
 
     return 0;
 }

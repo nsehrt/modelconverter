@@ -1,8 +1,7 @@
 #include "modelconverter.h"
 #include <functional>
 
-
-bool ModelConverter::load(const InitData& initData)
+bool ModelConverter::process(const InitData& initData)
 {
     Assimp::Importer importer;
 
@@ -32,7 +31,7 @@ bool ModelConverter::load(const InitData& initData)
         aiProcess_OptimizeMeshes | // join small meshes, if possible;
         0;
 
-    const aiScene* scene = importer.ReadFile(initData.fileName, 
+    const aiScene* scene = importer.ReadFile(initData.fileName,
                                              ppsteps | /* configurable pp steps */
                                              aiProcess_GenSmoothNormals | // generate smooth normal vectors if not existing
                                              aiProcess_SplitLargeMeshes | // split large, unrenderable meshes into submeshes
@@ -43,10 +42,9 @@ bool ModelConverter::load(const InitData& initData)
 
     if (!scene)
     {
-        std::cerr << "Unable to load specified file!\n";
+        std::cerr << "Unable to load specified file: " << initData.fileName << "!\n";
         return false;
     }
-
 
     /*load model*/
     if (!load(scene, initData))
@@ -86,7 +84,6 @@ bool ModelConverter::load(const InitData& initData)
 
 bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 {
-
     aiVector3D vMin = { +FLT_MAX, +FLT_MAX, +FLT_MAX };
     aiVector3D vMax = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
@@ -125,14 +122,12 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
             model.bones.push_back(b);
         }
-
     }
 
-
+    /*delete bones to force static model*/
     if (initData.forceStatic) model.bones.clear();
 
     model.isRigged = !model.bones.empty();
-
 
     for (UINT i = 0; i < scene->mNumMeshes; i++)
     {
@@ -140,7 +135,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
     }
 
     std::cout << "\nFound a total of " << model.bones.size() << " bones." << std::endl;
-
 
     /*print node hierarchy*/
 
@@ -153,7 +147,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
     printAINodes(rootNode);
     std::cout << std::endl;
 
-
     /*calculate bone hierarchy*/
     for (auto& b : model.bones)
     {
@@ -161,11 +154,9 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
         if (fNode)
         {
-
             b.parentIndex = findParentBone(model.bones, fNode);
             if (b.parentIndex >= 0)
                 b.parentName = model.bones[b.parentIndex].name;
-
         }
         else
         {
@@ -202,12 +193,10 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
     if (model.isRigged)
     {
-
         int bonesUsed = 1;
 
         while (bonesUsed != model.bones.size())
         {
-
             for (auto& b : model.bones)
             {
                 if (!b.used)
@@ -220,17 +209,14 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                     }
                 }
             }
-
         }
 
         /*test if bone hierarchy is correct*/
         std::vector<int> testHierarchy;
         testHierarchy.push_back(-1);
 
-
         for (const auto& v : model.boneHierarchy)
         {
-
             if (isInVector(testHierarchy, v.second))
             {
                 testHierarchy.push_back(v.first);
@@ -240,7 +226,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 std::cerr << "Bone hierarchy error!\n";
                 return false;
             }
-
         }
 
         std::cout << "Bone hierarchy test successful.\n";
@@ -252,13 +237,11 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
     if (model.isRigged)
     {
-
         model.animations.resize(scene->mNumAnimations);
         std::cout << "\n";
 
         for (UINT k = 0; k < scene->mNumAnimations; k++)
         {
-
             auto anim = scene->mAnimations[k];
             float animTicks = (float)anim->mTicksPerSecond;
             model.animations[k].name = anim->mName.C_Str();
@@ -270,7 +253,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
             std::cout << "Animation " << model.animations[k].name << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << " tick rate) animates " << anim->mNumChannels << " nodes.\n";
 
-            
             /*get rid of | character*/
             std::replace(model.animations[k].name.begin(), model.animations[k].name.end(), '|', '_');
             model.animations[k].keyframes.resize(model.bones.size());
@@ -292,7 +274,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
                     keyFrame.timeStamp = (float)channel->mRotationKeys[m].mTime / animTicks;
 
-
                     /*keep data from previous keyframe if there are no new data points
                     */
                     if (m >= (int)channel->mNumRotationKeys)
@@ -303,24 +284,18 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                     {
                         keyFrame.rotationQuat = channel->mRotationKeys[m].mValue;
                     }
-                    
 
                     if (m >= (int)channel->mNumPositionKeys)
                     {
-                        keyFrame.translation = channel->mPositionKeys[channel->mNumPositionKeys-1].mValue;
+                        keyFrame.translation = channel->mPositionKeys[channel->mNumPositionKeys - 1].mValue;
                     }
                     else
                     {
                         keyFrame.translation = channel->mPositionKeys[m].mValue;
                     }
-                    
-
 
                     model.animations[k].keyframes[nodeIndex][m] = keyFrame;
-
                 }
-
-
             }
 
             /*fill empty bones with identity keyframe*/
@@ -333,17 +308,13 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 }
             }
 
-
-
             std::cout << "\n---------------------------------------------------\n\n";
         }
-
     }
 
     std::cout << std::endl;
 
     /*load meshes*/
-
     for (UINT j = 0; j < scene->mNumMeshes; j++)
     {
         aiMesh* mesh = scene->mMeshes[j];
@@ -352,7 +323,7 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
         model.meshes.push_back(UnifiedMesh());
         model.meshes[j].vertices.reserve(mesh->mNumVertices);
 
-        std::cout << "Mesh " << j << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices and " <<  mesh->mNumFaces << " faces.\n" << std::endl;
+        std::cout << "Mesh " << j << " (" << mesh->mName.C_Str() << ") has " << mesh->mNumVertices << " vertices and " << mesh->mNumFaces << " faces.\n" << std::endl;
 
         std::cout << "Input name of material for " << mesh->mName.C_Str() << ": ";
         std::getline(std::cin, model.meshes[j].materialName);
@@ -372,7 +343,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
         for (UINT v = 0; v < mesh->mNumVertices; v++)
         {
-
             aiVector3D tex(0);
             aiVector3D tangU(0);
             aiVector3D pos = mesh->mVertices[v];
@@ -400,7 +370,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
             {
                 vMax = pos;
             }
-
         }
 
         /*load transformation from node*/
@@ -408,26 +377,33 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
         if (trfNode)
         {
-
             model.meshes[j].rootTransform = getGlobalTransform(trfNode);
-
         }
         else
         {
             std::cout << "\nCouldn't find the associated node!\n";
+            model.meshes[j].rootTransform = aiMatrix4x4();
 
-            for (int i = 0; i < scene->mRootNode->mNumChildren; i++)
+            for (int i = 0; i < (int)scene->mRootNode->mNumChildren; i++)
             {
                 std::string nodeName = scene->mRootNode->mChildren[i]->mName.C_Str();
+                std::string userInput;
 
-                if (nodeName != "Armature")
+                std::cout << "Do you want to use node \"" << scene->mRootNode->mChildren[i]->mName.C_Str() << "\" instead? (y/n)\n";
+                std::cin >> userInput;
+
+                if (userInput == "y" || userInput == "yes")
                 {
-                    std::cout << "Instead using node \"" << scene->mRootNode->mChildren[i]->mName.C_Str() << "\".\n";
                     model.meshes[j].rootTransform = getGlobalTransform(scene->mRootNode->mChildren[i]);
+                    continue;
                 }
-            }
 
-            
+            }
+        }
+
+        if (model.meshes[j].rootTransform.IsIdentity())
+        {
+            std::cout << "Root transform = Identity matrix\n";
         }
 
         std::cout << "\n---------------------------------------------------\n\n";
@@ -441,7 +417,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
             model.meshes[j].indices.push_back(mesh->mFaces[k].mIndices[1]);
             model.meshes[j].indices.push_back(mesh->mFaces[k].mIndices[2]);
         }
-
     }
 
     /*add weights*/
@@ -455,7 +430,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 model.meshes[0].vertices[b.bone->mWeights[k].mVertexId].BlendIndices.push_back(b.index);
                 model.meshes[0].vertices[b.bone->mWeights[k].mVertexId].BlendWeights.push_back(b.bone->mWeights[k].mWeight);
             }
-
         }
 
         /*check weight validity*/
@@ -486,11 +460,8 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 {
                     f += add;
                 }
-
             }
-
         }
-
     }
 
     /*apply centering and scaling if needed*/
@@ -506,12 +477,10 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
         std::cout << "Scaling with factor " << initData.scaleFactor << ".." << std::endl;
     }
 
-
     for (auto& m : model.meshes)
     {
         for (auto& v : m.vertices)
         {
-
             if (initData.centerEnabled && !model.isRigged)
             {
                 v.Position -= center;
@@ -528,10 +497,8 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 v.Normal = m.rootTransform * v.Normal;
                 v.TangentU = m.rootTransform * v.TangentU;
             }
-
         }
     }
-
 
     std::cout << "\nFinished loading file.\n";
     std::cout << "\n===================================================\n\n";
@@ -575,7 +542,6 @@ bool ModelConverter::write()
     /*bone data only in s3d*/
     if (model.isRigged)
     {
-
         /*number of bones*/
         char boneSize = (char)model.bones.size();
         fileHandle.write(reinterpret_cast<const char*>(&boneSize), sizeof(char));
@@ -592,7 +558,6 @@ bool ModelConverter::write()
             fileHandle.write(reinterpret_cast<const char*>(&b.name[0]), boneStrSize);
 
             fileHandle.write(reinterpret_cast<const char*>(&b.bone->mOffsetMatrix.Transpose()), sizeof(aiMatrix4x4));
-
         }
 
         /*bone hierarchy pairs*/
@@ -601,7 +566,6 @@ bool ModelConverter::write()
             fileHandle.write(reinterpret_cast<const char*>(&b.first), sizeof(int));
             fileHandle.write(reinterpret_cast<const char*>(&b.second), sizeof(int));
         }
-
 
         /*complete node tree*/
         std::function<void(aiNode*, int)> writeTree = [&](aiNode* node, int depth) -> void
@@ -626,7 +590,6 @@ bool ModelConverter::write()
         };
 
         writeTree(model.rootNode, 0);
-
     }
 
     /*mesh data for both formats*/
@@ -665,11 +628,9 @@ bool ModelConverter::write()
             fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].TangentU.y), sizeof(float));
             fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].TangentU.z), sizeof(float));
 
-
             /*bone weights only for rigged*/
             if (model.isRigged)
             {
-
                 /*fill bone data*/
                 while (model.meshes[i].vertices[v].BlendIndices.size() < 4)
                 {
@@ -687,12 +648,8 @@ bool ModelConverter::write()
                     fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].BlendIndices[k]), sizeof(UINT));
                     fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].vertices[v].BlendWeights[k]), sizeof(float));
                 }
-
             }
-
-
         }
-
 
         /*num indices*/
         int indicesSize = (int)model.meshes[i].indices.size();
@@ -703,12 +660,9 @@ bool ModelConverter::write()
         {
             fileHandle.write(reinterpret_cast<const char*>(&model.meshes[i].indices[j]), sizeof(UINT));
         }
-
     }
 
     fileHandle.close();
-
-
 
     std::cout << "\nFinished writing " << model.fileName << "." << std::endl;
 
@@ -744,7 +698,6 @@ void ModelConverter::printFile(const std::string& fileName, bool verbose)
         {
             std::cerr << "Invalid file!" << std::endl;
         }
-
     }
     else
     {
@@ -755,7 +708,6 @@ void ModelConverter::printFile(const std::string& fileName, bool verbose)
 
 void ModelConverter::printB3D(const std::string& fileName, bool verbose)
 {
-
     std::cout << "Printing B3D file " << fileName << "..\n" << std::endl;
     std::cout << "\n---------------------------------------------------\n\n";
 
@@ -796,7 +748,6 @@ void ModelConverter::printB3D(const std::string& fileName, bool verbose)
         std::cerr << "File contains incorrect header!\n";
         return;
     }
-
 
     char numMeshes;
     file.read(&numMeshes, sizeof(numMeshes));
@@ -851,7 +802,6 @@ void ModelConverter::printB3D(const std::string& fileName, bool verbose)
                 std::cout << "Tan: " << vertex.TangentU.x << " | " << vertex.TangentU.y << " | " << vertex.TangentU.z << "\n";
                 std::cout << "\n";
             }
-
         }
 
         if (verbose)
@@ -881,18 +831,13 @@ void ModelConverter::printB3D(const std::string& fileName, bool verbose)
                     std::cout << temp << "\n";
                 }
             }
-
-
         }
         std::cout << std::endl;
-
     }
-
 }
 
 void ModelConverter::printS3D(const std::string& fileName, bool verbose)
 {
-
     std::cout << "Printing S3D file " << fileName << "..\n" << std::endl;
     std::cout << "\n---------------------------------------------------\n\n";
 
@@ -976,7 +921,7 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
                               mOff[4], mOff[5], mOff[6], mOff[7],
                               mOff[8], mOff[9], mOff[10], mOff[11],
                               mOff[12], mOff[13], mOff[14], mOff[15]
-                              );
+        );
 
         if (verbose)
         {
@@ -1003,9 +948,7 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
         std::cout << boneNames[i] << " (" << i << ") is child of bone " << (boneHierarchyCheck[i] >= 0 ? boneNames[boneHierarchyCheck[i]] : "-1") << " (" << boneHierarchyCheck[i] << ")" << std::endl;
     }
 
-
     std::cout << "\n\n---------------------------------------------------\n\n";
-
 
     /*node tree*/
     Node root;
@@ -1026,7 +969,6 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
         int numChildren = 0;
         file.read((char*)(&numChildren), sizeof(int));
 
-
         /*fill node*/
         node->name = nameStr;
         node->transform = aiMatrix4x4(mTemp[0], mTemp[1], mTemp[2], mTemp[3],
@@ -1042,8 +984,6 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
             node->children.push_back(Node());
             loadTree(&node->children.back(), node);
         }
-
-
     };
 
     loadTree(&root, nullptr);
@@ -1118,7 +1058,6 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
                 std::cout << "BlWgt: " << vertex.BlendWeights[0] << " | " << vertex.BlendWeights[1] << " | " << vertex.BlendWeights[2] << " | " << vertex.BlendWeights[3] << "\n";
                 std::cout << "\n";
             }
-
         }
 
         if (verbose)
@@ -1148,18 +1087,13 @@ void ModelConverter::printS3D(const std::string& fileName, bool verbose)
                     std::cout << temp << "\n";
                 }
             }
-
-
         }
         std::cout << std::endl;
-
     }
-
 }
 
 void ModelConverter::printCLP(const std::string& fileName, bool verbose)
 {
-
     std::cout << "Printing CLP file " << fileName << "..\n" << std::endl;
     std::cout << "\n---------------------------------------------------\n\n";
 
@@ -1201,7 +1135,6 @@ void ModelConverter::printCLP(const std::string& fileName, bool verbose)
         return;
     }
 
-
     int slen = 0;
     file.read((char*)(&slen), sizeof(int));
 
@@ -1215,7 +1148,6 @@ void ModelConverter::printCLP(const std::string& fileName, bool verbose)
     file.read((char*)(&vNumBones), sizeof(int));
 
     std::cout << "Bones:\t" << vNumBones << "\n";
-
 
     for (UINT i = 0; i < vNumBones; i++)
     {
@@ -1262,12 +1194,10 @@ void ModelConverter::printCLP(const std::string& fileName, bool verbose)
                 std::cout << "RotQu:\t" << temp << " | " << temp2 << " | " << temp3 << " | " << temp4 << "\n";
             if (verbose)
                 std::cout << "\n---------------------------------------------------\n\n";
-
         }
     }
 
     file.close();
-
 }
 
 bool ModelConverter::writeAnimations()
@@ -1415,7 +1345,6 @@ bool ModelConverter::isInVector(std::vector<int>& arr, int index)
         if (v == index) return true;
     }
 
-
     return false;
 }
 
@@ -1436,7 +1365,6 @@ void ModelConverter::printAINodes(aiNode* node, int depth)
 
 void ModelConverter::printNodes(Node* node, int depth)
 {
-
     std::cout << std::string((long long)depth * 3, ' ') << char(0xC0) << std::string(2, '-') << ">" << node->name;
     if (node->transform.IsIdentity())
     {
@@ -1444,14 +1372,13 @@ void ModelConverter::printNodes(Node* node, int depth)
     }
     std::cout << "\n";
 
-    if(!node->transform.IsIdentity())
-    printAIMatrix(node->transform);
+    if (!node->transform.IsIdentity())
+        printAIMatrix(node->transform);
 
     for (UINT i = 0; i < node->children.size(); i++)
     {
         printNodes(&node->children[i], depth + 1);
     }
-
 }
 
 void ModelConverter::printAIMatrix(const aiMatrix4x4& m)
