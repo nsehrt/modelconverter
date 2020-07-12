@@ -395,7 +395,7 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 if (userInput == "y" || userInput == "yes")
                 {
                     model.meshes[j].rootTransform = getGlobalTransform(scene->mRootNode->mChildren[i]);
-                    continue;
+                    break;;
                 }
 
             }
