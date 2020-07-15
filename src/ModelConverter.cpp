@@ -390,9 +390,9 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 std::string userInput;
 
                 std::cout << "Do you want to use node \"" << scene->mRootNode->mChildren[i]->mName.C_Str() << "\" instead? (y/n)\n";
-                std::cin >> userInput;
+                std::getline(std::cin, userInput);
 
-                if (userInput == "y" || userInput == "yes")
+                if (userInput == "y" || userInput == "yes" || userInput.empty())
                 {
                     model.meshes[j].rootTransform = getGlobalTransform(scene->mRootNode->mChildren[i]);
                     break;;
@@ -1204,13 +1204,23 @@ bool ModelConverter::writeAnimations()
 {
     std::cout << "\n===================================================\n\n";
 
-    for (const auto& f : model.animations)
+    for (auto& f : model.animations)
     {
         /*writing to binary file .clp*/
         auto startTime = std::chrono::high_resolution_clock::now();
 
         std::ios_base::sync_with_stdio(false);
         std::cin.tie(NULL);
+
+        std::cout << "Write animation as " << f.name << "? (y/other name)\n";
+
+        std::string inputName;
+        std::getline(std::cin, inputName);
+
+        if (!inputName.empty())
+        {
+            f.name = inputName;
+        }
 
         std::string clipFile = f.name + ".clp";
 

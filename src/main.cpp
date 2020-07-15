@@ -26,6 +26,10 @@ int main(int argc, char* argv[])
     /*command line parameter*/
     initData.fileName = argv[1];
 
+#ifdef _DEBUG
+    initData.fileName = "C:\\Users\\n_seh\\Desktop\\blender\\testarea\\geo.fbx";
+#endif
+
     for (int i = 2; i < argc; i++)
     {
         std::vector<std::string> sVec = split(argv[i], '=');
