@@ -251,10 +251,12 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 model.animations[k].name = model.name + "_Animation";
             }
 
-            std::cout << "Animation " << model.animations[k].name << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << " tick rate) animates " << anim->mNumChannels << " nodes.\n";
-
             /*get rid of | character*/
             std::replace(model.animations[k].name.begin(), model.animations[k].name.end(), '|', '_');
+
+            std::cout << "Animation " << model.animations[k].name << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << " tick rate) animates " << anim->mNumChannels << " nodes.\n";
+
+
             model.animations[k].keyframes.resize(model.bones.size());
 
             for (UINT p = 0; p < anim->mNumChannels; p++)
@@ -266,13 +268,25 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 int nodeIndex = findIndexInBones(model.bones, channel->mNodeName.C_Str());
                 if (nodeIndex < 0) continue;
 
+
                 model.animations[k].keyframes[nodeIndex].resize(numKeyFrames);
 
                 for (int m = 0; m < numKeyFrames; m++)
                 {
                     KeyFrame keyFrame;
 
-                    keyFrame.timeStamp = (float)channel->mRotationKeys[m].mTime / animTicks;
+                    /*figuring out the correct timestamp because assimp is weird*/
+                    keyFrame.timeStamp = (float)channel->mPositionKeys[m].mTime / animTicks;
+
+                    if (m > 0 && (keyFrame.timeStamp - 0.0001f) <= 0.0f)
+                    {
+                        keyFrame.timeStamp = (float)channel->mRotationKeys[m].mTime / animTicks;
+
+                        if ((keyFrame.timeStamp - 0.0001f) <= 0.0f){
+                            std::cout << "Warning: Timing on key frame " << m << " is 0!\n";
+                        }
+                    }
+
 
                     /*keep data from previous keyframe if there are no new data points
                     */
