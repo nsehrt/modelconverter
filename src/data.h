@@ -51,6 +51,7 @@ struct Bone
 struct KeyFrame
 {
     bool isEmpty = false;
+    bool saveToFile = true;
 
     KeyFrame()
     {
@@ -104,16 +105,30 @@ struct InitData
     }
 };
 
-static std::vector<std::string> split(const std::string& s, char delim)
+static std::vector<std::string> split(const std::string& str, char del)
 {
     std::vector<std::string> result;
-    std::stringstream ss(s);
-    std::string item;
+    size_t pos = str.find(del);
+    size_t initialPos = 0;
+    result.clear();
 
-    while (getline(ss, item, delim))
+    while (pos != std::string::npos)
     {
-        result.push_back(item);
+        auto s = str.substr(initialPos, pos - initialPos);
+        if (s == " " || s == "")
+        {
+            initialPos = pos + 1;
+            pos = str.find(del, initialPos);
+            continue;
+        }
+
+        result.push_back(s);
+        initialPos = pos + 1;
+
+        pos = str.find(del, initialPos);
     }
+
+    result.push_back(str.substr(initialPos, std::min(pos, str.size()) - initialPos + 1));
 
     return result;
 }

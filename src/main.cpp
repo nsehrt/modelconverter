@@ -1,7 +1,7 @@
 #include "modelconverter.h"
 
 const int VERSION_MAJOR = 1;
-const int VERSION_MINOR = 0;
+const int VERSION_MINOR = 1;
 
 int main(int argc, char* argv[])
 {

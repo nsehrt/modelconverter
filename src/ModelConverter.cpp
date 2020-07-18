@@ -256,7 +256,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
 
             std::cout << "Animation " << model.animations[k].name << ": " << anim->mDuration / anim->mTicksPerSecond << "s (" << anim->mTicksPerSecond << " tick rate) animates " << anim->mNumChannels << " nodes.\n";
 
-
             model.animations[k].keyframes.resize(model.bones.size());
 
             for (UINT p = 0; p < anim->mNumChannels; p++)
@@ -267,7 +266,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                 int numKeyFrames = std::max(channel->mNumPositionKeys, channel->mNumRotationKeys);
                 int nodeIndex = findIndexInBones(model.bones, channel->mNodeName.C_Str());
                 if (nodeIndex < 0) continue;
-
 
                 model.animations[k].keyframes[nodeIndex].resize(numKeyFrames);
 
@@ -282,11 +280,11 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                     {
                         keyFrame.timeStamp = (float)channel->mRotationKeys[m].mTime / animTicks;
 
-                        if ((keyFrame.timeStamp - 0.0001f) <= 0.0f){
+                        if ((keyFrame.timeStamp - 0.0001f) <= 0.0f)
+                        {
                             std::cout << "Warning: Timing on key frame " << m << " is 0!\n";
                         }
                     }
-
 
                     /*keep data from previous keyframe if there are no new data points
                     */
@@ -306,6 +304,15 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                     else
                     {
                         keyFrame.translation = channel->mPositionKeys[m].mValue;
+                    }
+
+                    if (m >= (int)channel->mNumScalingKeys)
+                    {
+                        keyFrame.scale = channel->mScalingKeys[channel->mNumScalingKeys - 1].mValue;
+                    }
+                    else
+                    {
+                        keyFrame.scale = channel->mScalingKeys[m].mValue;
                     }
 
                     model.animations[k].keyframes[nodeIndex][m] = keyFrame;
@@ -411,7 +418,6 @@ bool ModelConverter::load(const aiScene* scene, const InitData& initData)
                     model.meshes[j].rootTransform = getGlobalTransform(scene->mRootNode->mChildren[i]);
                     break;;
                 }
-
             }
         }
 
@@ -1226,14 +1232,43 @@ bool ModelConverter::writeAnimations()
         std::ios_base::sync_with_stdio(false);
         std::cin.tie(NULL);
 
-        std::cout << "Write animation as " << f.name << "? (y/other name)\n";
+        std::cout << "Write animation as " << f.name << "? (y/other name, name 0 50 100 for key frame selection)\n";
 
         std::string inputName;
         std::getline(std::cin, inputName);
 
+        int keyfrSize = (int)f.keyframes[0].size();
+
         if (!inputName.empty())
         {
-            f.name = inputName;
+            auto splitInput = split(inputName, ' ');
+
+            if (splitInput.size() > 1)
+            {
+                keyfrSize = (int)splitInput.size() - 1;
+
+                for (int i = 0; i < f.keyframes.size(); i++)
+                {
+                    for (auto& kf : f.keyframes[i])
+                    {
+                        kf.saveToFile = false;
+                    }
+                }
+
+                for (size_t i = 1; i < splitInput.size(); i++)
+                {
+                    int k = std::stoi(splitInput[i]);
+
+                    if (k >= f.keyframes[0].size()) continue;
+
+                    for (int i = 0; i < f.keyframes.size(); i++)
+                    {
+                        f.keyframes[i][k].saveToFile = true;
+                    }
+                }
+            }
+
+            f.name = splitInput[0];
         }
 
         std::string clipFile = f.name + ".clp";
@@ -1259,8 +1294,6 @@ bool ModelConverter::writeAnimations()
 
         for (int i = 0; i < f.keyframes.size(); i++)
         {
-            int keyfrSize = (int)f.keyframes[i].size();
-
             if (keyfrSize == 1 && f.keyframes[i][0].isEmpty)
             {
                 int t = -1;
@@ -1272,6 +1305,8 @@ bool ModelConverter::writeAnimations()
 
             for (const auto& kf : f.keyframes[i])
             {
+                if (!kf.saveToFile) continue;
+
                 fileHandle.write(reinterpret_cast<const char*>(&kf.timeStamp), sizeof(float));
 
                 fileHandle.write(reinterpret_cast<const char*>(&kf.translation.x), sizeof(float));
