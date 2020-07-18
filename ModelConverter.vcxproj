@@ -87,6 +87,7 @@
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>C:\Program Files\Autodesk\FBX\FBX SDK\2020.0.1\include;C:\Program Files\Assimp\include;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Program Files\Autodesk\FBX\FBX SDK\2020.0.1\lib\vs2017\x64\debug;C:\Program Files\Assimp\lib\Release;$(LibraryPath)</LibraryPath>
+    <TargetName>mconv</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -97,6 +98,7 @@
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>C:\Users\n_seh\source\repos\modelconvert;C:\Program Files\Assimp\include;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Program Files\Autodesk\FBX\FBX SDK\2020.0.1\lib\vs2017\x64\release;C:\Program Files\Autodesk\FBX\FBX SDK\2020.0.1\lib\vs2017\x64\debug;C:\Program Files\Assimp\lib\Release;$(LibraryPath)</LibraryPath>
+    <TargetName>mconv</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

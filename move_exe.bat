@@ -1,2 +1,2 @@
 @ECHO OFF
-xcopy "x64\Release\ModelConverter.exe" /Y
+xcopy "x64\Release\mconv.exe" /Y
